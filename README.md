@@ -150,9 +150,9 @@ memoweaver init ./wiki --domain "AI research and engineering"
 # Register a source in the wiki state before ingestion
 memoweaver sources register ./reports/example.pdf --wiki ./wiki --kind pdf --title "Example report"
 
-# Ingest a document or URL
-memoweaver ingest ./reports/example.pdf --wiki ./wiki
-memoweaver ingest https://example.com/article --wiki ./wiki
+# Ingest a local Markdown/TXT document
+memoweaver ingest ./notes/example.md --wiki ./wiki --title "Example note"
+memoweaver ingest ./notes/raw-notes.txt --wiki ./wiki
 
 # Ask a question against the maintained wiki
 memoweaver ask "What are the strongest arguments for agentic knowledge bases?" --wiki ./wiki
@@ -207,10 +207,13 @@ wiki.lint()
 - [x] Register sources by SHA-256
 - [x] Detect duplicate source content
 
-### Phase 3 — Markdown Ingestion
+### Phase 3 — Markdown/TXT Ingestion
 
-- [ ] Ingest local Markdown files
-- [ ] Store immutable raw sources
+- [x] Ingest local Markdown files
+- [x] Ingest local TXT files
+- [x] Store immutable raw sources
+- [x] Write raw-source metadata sidecars
+- [x] Skip duplicate content by SHA-256
 - [ ] Extract title, summary, entities, and concepts
 - [ ] Generate first wiki pages
 
@@ -238,7 +241,7 @@ wiki.lint()
 
 ## Status
 
-MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, and detect duplicate source content. The next goal is to ingest local Markdown/TXT files into immutable raw-source storage and then generate the first maintained wiki pages.
+MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, and detect duplicate source content. The next goal is to parse ingested Markdown/TXT into structured documents and then generate the first maintained wiki pages.
 
 ## License
 

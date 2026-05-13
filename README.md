@@ -162,6 +162,9 @@ export CLIPROXYAPI_BASE_URL=http://127.0.0.1:8317/v1
 export CLIPROXYAPI_API_KEY=... # or configure CLIProxyAPI locally
 memoweaver extract ./wiki/raw/articles/src_abc123.md --model gpt-5.5
 
+# Materialize a saved extraction payload into Markdown pages
+memoweaver write-pages ./extraction.json --wiki ./wiki
+
 # Ask a question against the maintained wiki
 memoweaver ask "What are the strongest arguments for agentic knowledge bases?" --wiki ./wiki
 
@@ -222,8 +225,8 @@ wiki.lint()
 - [x] Store immutable raw sources
 - [x] Write raw-source metadata sidecars
 - [x] Skip duplicate content by SHA-256
-- [ ] Extract title, summary, entities, and concepts
-- [ ] Generate first wiki pages
+- [x] Extract title, summary, entities, and concepts
+- [x] Generate first wiki pages
 
 ### Phase 4 — Parser
 
@@ -244,8 +247,13 @@ wiki.lint()
 - [x] Add structured extraction schemas
 - [ ] Persist extraction results into wiki state/cache
 
-### Phase 6 — Wiki Maintenance
+### Phase 6 — Wiki Page Writer
 
+- [x] Create entity pages from extraction output
+- [x] Create concept pages from extraction output
+- [x] Create suggested pages from extraction output
+- [x] Preserve human edits outside generated blocks
+- [x] Add `write-pages` CLI command
 - [ ] Backlink generation
 - [ ] Index maintenance
 - [ ] Broken link detection
@@ -261,7 +269,7 @@ wiki.lint()
 
 ## Status
 
-MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, parse raw sources into structured blocks/chunks, call a local Codex HTTP/CLIProxyAPI endpoint for structured knowledge extraction, and detect duplicate source content. The next goal is to turn extracted entities, concepts, claims, relations, and suggested pages into maintained Markdown wiki pages.
+MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, parse raw sources into structured blocks/chunks, call a local Codex HTTP/CLIProxyAPI endpoint for structured knowledge extraction, materialize extraction output into entity/concept Markdown pages, and detect duplicate source content. The next goal is to add resolver/index/log maintenance so pages can be merged, linked, and audited over time.
 
 ## License
 

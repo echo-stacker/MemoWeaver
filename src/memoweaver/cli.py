@@ -11,6 +11,7 @@ from memoweaver.llm import CodexHTTPProvider, extract_document_insights
 from memoweaver.parser import parse_wiki_raw_source
 from memoweaver.storage import SourceRegistry
 from memoweaver.wiki import init_wiki
+from memoweaver.wiki_writer import extraction_from_dict, write_extraction_pages
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -124,6 +125,22 @@ def extract(raw_path: Path, model: str | None) -> None:
             sort_keys=True,
         )
     )
+
+
+@cli.command("write-pages")
+@click.argument("extraction_path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option("--wiki", "wiki_path", required=True, type=click.Path(path_type=Path), help="MemoWeaver wiki path.")
+def write_pages(extraction_path: Path, wiki_path: Path) -> None:
+    """Write entity/concept Markdown pages from an extraction JSON file.
+
+    This bridges the current MVP pipeline: `extract_document_insights()` can emit
+    `LLMExtraction.to_dict()`, and this command materializes that structure as
+    durable Markdown pages while preserving human edits outside generated blocks.
+    """
+
+    payload = json.loads(extraction_path.read_text(encoding="utf-8"))
+    result = write_extraction_pages(extraction_from_dict(payload), wiki_path=wiki_path)
+    click.echo(json.dumps(result.to_dict(), ensure_ascii=False, sort_keys=True))
 
 
 @cli.group()

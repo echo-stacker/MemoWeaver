@@ -7,6 +7,7 @@ import click
 
 from memoweaver import __version__
 from memoweaver.ingest import ingest_file
+from memoweaver.llm import CodexHTTPProvider, extract_document_insights
 from memoweaver.parser import parse_wiki_raw_source
 from memoweaver.storage import SourceRegistry
 from memoweaver.wiki import init_wiki
@@ -74,6 +75,50 @@ def parse(raw_path: Path) -> None:
                 "heading_count": len(document.headings),
                 "block_count": len(document.blocks),
                 "chunk_count": len(document.chunks),
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+    )
+
+
+@cli.command()
+@click.argument("raw_path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option("--model", default=None, help="Local Codex HTTP model name. Defaults to MEMOWEAVER_CODEX_MODEL or gpt-5.5.")
+def extract(raw_path: Path, model: str | None) -> None:
+    """Extract structured wiki knowledge via local Codex HTTP/CLIProxyAPI.
+
+    The command is intentionally the first narrow LLM integration: it parses one
+    ingested raw source, calls the local OpenAI-compatible Codex endpoint, and
+    prints a compact JSON summary. Full extraction payloads are available through
+    the Python API and will feed the future wiki writer module.
+    """
+
+    document = parse_wiki_raw_source(raw_path)
+    provider = CodexHTTPProvider.from_env()
+    if model:
+        provider = CodexHTTPProvider(
+            base_url=provider.base_url,
+            api_key=provider.api_key,
+            model=model,
+            timeout=provider.timeout,
+            temperature=provider.temperature,
+        )
+    try:
+        extraction = extract_document_insights(document, provider=provider)
+    except Exception as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "source_id": extraction.source_id,
+                "summary": extraction.summary,
+                "entity_count": len(extraction.entities),
+                "concept_count": len(extraction.concepts),
+                "claim_count": len(extraction.claims),
+                "relation_count": len(extraction.relations),
+                "suggested_page_count": len(extraction.suggested_pages),
             },
             ensure_ascii=False,
             sort_keys=True,

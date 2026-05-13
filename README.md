@@ -157,6 +157,11 @@ memoweaver ingest ./notes/raw-notes.txt --wiki ./wiki
 # Parse an ingested raw source into a structured document summary
 memoweaver parse ./wiki/raw/articles/src_abc123.md
 
+# Extract structured knowledge with local Codex HTTP/CLIProxyAPI
+export CLIPROXYAPI_BASE_URL=http://127.0.0.1:8317/v1
+export CLIPROXYAPI_API_KEY=... # or configure CLIProxyAPI locally
+memoweaver extract ./wiki/raw/articles/src_abc123.md --model gpt-5.5
+
 # Ask a question against the maintained wiki
 memoweaver ask "What are the strongest arguments for agentic knowledge bases?" --wiki ./wiki
 
@@ -233,10 +238,11 @@ wiki.lint()
 
 ### Phase 5 — LLM Integration
 
-- [ ] Add pluggable LLM provider interface
-- [ ] Support OpenAI-compatible endpoints
-- [ ] Support local model gateways
-- [ ] Add structured extraction schemas
+- [x] Add pluggable LLM provider interface
+- [x] Support OpenAI-compatible endpoints
+- [x] Support local Codex HTTP/CLIProxyAPI gateway
+- [x] Add structured extraction schemas
+- [ ] Persist extraction results into wiki state/cache
 
 ### Phase 6 — Wiki Maintenance
 
@@ -255,7 +261,7 @@ wiki.lint()
 
 ## Status
 
-MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, parse raw sources into structured blocks/chunks, and detect duplicate source content. The next goal is to add a small LLM abstraction for extracting entities, concepts, claims, and relationships from parsed documents.
+MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, parse raw sources into structured blocks/chunks, call a local Codex HTTP/CLIProxyAPI endpoint for structured knowledge extraction, and detect duplicate source content. The next goal is to turn extracted entities, concepts, claims, relations, and suggested pages into maintained Markdown wiki pages.
 
 ## License
 

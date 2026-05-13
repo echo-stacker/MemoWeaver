@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
 
 import click
 
 from memoweaver import __version__
 from memoweaver.ingest import ingest_file
+from memoweaver.parser import parse_wiki_raw_source
 from memoweaver.storage import SourceRegistry
 from memoweaver.wiki import init_wiki
 
@@ -49,6 +51,34 @@ def ingest(source_path: Path, wiki_path: Path, title: str | None) -> None:
         click.echo(f"Ingested source: source_id={result.record.source_id} raw_path={result.raw_path}")
     else:
         click.echo(f"Duplicate source: source_id={result.record.source_id} raw_path={result.raw_path}")
+
+
+@cli.command()
+@click.argument("raw_path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+def parse(raw_path: Path) -> None:
+    """Parse an ingested raw Markdown/TXT source and print a JSON summary.
+
+    The CLI returns a compact summary rather than the full document so it stays
+    readable in terminals. Library users can call `parse_wiki_raw_source()` when
+    they need the full block/chunk payload for the LLM stage.
+    """
+
+    document = parse_wiki_raw_source(raw_path)
+    click.echo(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "source_id": document.source_id,
+                "title": document.title,
+                "source_path": str(document.source_path),
+                "heading_count": len(document.headings),
+                "block_count": len(document.blocks),
+                "chunk_count": len(document.chunks),
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+    )
 
 
 @cli.group()

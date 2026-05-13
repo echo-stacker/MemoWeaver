@@ -154,6 +154,9 @@ memoweaver sources register ./reports/example.pdf --wiki ./wiki --kind pdf --tit
 memoweaver ingest ./notes/example.md --wiki ./wiki --title "Example note"
 memoweaver ingest ./notes/raw-notes.txt --wiki ./wiki
 
+# Parse an ingested raw source into a structured document summary
+memoweaver parse ./wiki/raw/articles/src_abc123.md
+
 # Ask a question against the maintained wiki
 memoweaver ask "What are the strongest arguments for agentic knowledge bases?" --wiki ./wiki
 
@@ -217,14 +220,25 @@ wiki.lint()
 - [ ] Extract title, summary, entities, and concepts
 - [ ] Generate first wiki pages
 
-### Phase 4 — LLM Integration
+### Phase 4 — Parser
+
+- [x] Parse Markdown headings
+- [x] Parse Markdown paragraphs
+- [x] Preserve fenced code blocks
+- [x] Parse plain TXT paragraphs
+- [x] Emit structured `ParsedDocument` JSON
+- [x] Emit LLM-friendly chunks
+- [ ] Preserve Markdown tables as typed blocks
+- [ ] Add configurable chunk merging/splitting
+
+### Phase 5 — LLM Integration
 
 - [ ] Add pluggable LLM provider interface
 - [ ] Support OpenAI-compatible endpoints
 - [ ] Support local model gateways
 - [ ] Add structured extraction schemas
 
-### Phase 5 — Wiki Maintenance
+### Phase 6 — Wiki Maintenance
 
 - [ ] Backlink generation
 - [ ] Index maintenance
@@ -232,7 +246,7 @@ wiki.lint()
 - [ ] Orphan page detection
 - [ ] Duplicate page detection
 
-### Phase 6 — Query and Automation
+### Phase 7 — Query and Automation
 
 - [ ] CLI query command
 - [ ] Optional local HTTP API
@@ -241,7 +255,7 @@ wiki.lint()
 
 ## Status
 
-MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, and detect duplicate source content. The next goal is to parse ingested Markdown/TXT into structured documents and then generate the first maintained wiki pages.
+MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, parse raw sources into structured blocks/chunks, and detect duplicate source content. The next goal is to add a small LLM abstraction for extracting entities, concepts, claims, and relationships from parsed documents.
 
 ## License
 

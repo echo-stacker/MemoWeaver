@@ -9,6 +9,7 @@ from memoweaver import __version__
 from memoweaver.ingest import ingest_file
 from memoweaver.llm import CodexHTTPProvider, extract_document_insights
 from memoweaver.parser import parse_wiki_raw_source
+from memoweaver.resolver import resolve_extraction_pages
 from memoweaver.storage import SourceRegistry
 from memoweaver.wiki import init_wiki
 from memoweaver.wiki_writer import extraction_from_dict, write_extraction_pages
@@ -141,6 +142,22 @@ def write_pages(extraction_path: Path, wiki_path: Path) -> None:
     payload = json.loads(extraction_path.read_text(encoding="utf-8"))
     result = write_extraction_pages(extraction_from_dict(payload), wiki_path=wiki_path)
     click.echo(json.dumps(result.to_dict(), ensure_ascii=False, sort_keys=True))
+
+
+@cli.command("resolve-pages")
+@click.argument("extraction_path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option("--wiki", "wiki_path", required=True, type=click.Path(path_type=Path), help="MemoWeaver wiki path.")
+def resolve_pages(extraction_path: Path, wiki_path: Path) -> None:
+    """Dry-run create/update/skip decisions for extraction JSON.
+
+    This command does not write pages. It exposes the resolver's decision layer so
+    contributors can inspect whether extracted entities/concepts would create new
+    files, update existing pages, or be skipped as duplicate targets.
+    """
+
+    payload = json.loads(extraction_path.read_text(encoding="utf-8"))
+    plan = resolve_extraction_pages(extraction_from_dict(payload), wiki_path=wiki_path)
+    click.echo(json.dumps(plan.to_dict(), ensure_ascii=False, sort_keys=True))
 
 
 @cli.group()

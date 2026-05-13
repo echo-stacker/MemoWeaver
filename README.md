@@ -165,6 +165,9 @@ memoweaver extract ./wiki/raw/articles/src_abc123.md --model gpt-5.5
 # Materialize a saved extraction payload into Markdown pages
 memoweaver write-pages ./extraction.json --wiki ./wiki
 
+# Dry-run resolver decisions before writing/updating pages
+memoweaver resolve-pages ./extraction.json --wiki ./wiki
+
 # Ask a question against the maintained wiki
 memoweaver ask "What are the strongest arguments for agentic knowledge bases?" --wiki ./wiki
 
@@ -260,7 +263,17 @@ wiki.lint()
 - [ ] Orphan page detection
 - [ ] Duplicate page detection
 
-### Phase 7 — Query and Automation
+### Phase 7 — Resolver
+
+- [x] Scan existing entity/concept pages
+- [x] Build slug/title/alias lookup maps
+- [x] Generate create/update/skip change plans
+- [x] Add resolver dry-run CLI
+- [ ] Feed resolver plans into writer execution
+- [ ] Merge source_ids across updates
+- [ ] Add canonical alias/collision policies
+
+### Phase 8 — Query and Automation
 
 - [ ] CLI query command
 - [ ] Optional local HTTP API
@@ -269,7 +282,7 @@ wiki.lint()
 
 ## Status
 
-MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, parse raw sources into structured blocks/chunks, call a local Codex HTTP/CLIProxyAPI endpoint for structured knowledge extraction, materialize extraction output into entity/concept Markdown pages, and detect duplicate source content. The next goal is to add resolver/index/log maintenance so pages can be merged, linked, and audited over time.
+MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, parse raw sources into structured blocks/chunks, call a local Codex HTTP/CLIProxyAPI endpoint for structured knowledge extraction, materialize extraction output into entity/concept Markdown pages, dry-run resolver create/update/skip decisions, and detect duplicate source content. The next goal is to feed resolver plans into writer/index/log maintenance so pages can be merged, linked, and audited over time.
 
 ## License
 

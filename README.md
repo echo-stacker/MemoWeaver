@@ -166,6 +166,10 @@ memoweaver extract ./wiki/raw/articles/src_abc123.md --model gpt-5.5
 memoweaver write-pages ./extraction.json --wiki ./wiki
 memoweaver write-pages ./extraction.json --wiki ./wiki --resolve
 
+# Check wiki health
+memoweaver lint ./wiki
+memoweaver lint ./wiki --json
+
 # Dry-run resolver decisions before writing/updating pages
 memoweaver resolve-pages ./extraction.json --wiki ./wiki
 
@@ -260,8 +264,8 @@ wiki.lint()
 - [x] Add `write-pages` CLI command
 - [ ] Backlink generation
 - [ ] Index maintenance
-- [ ] Broken link detection
-- [ ] Orphan page detection
+- [x] Broken link detection
+- [x] Orphan page detection
 - [ ] Duplicate page detection
 
 ### Phase 7 — Resolver
@@ -274,16 +278,21 @@ wiki.lint()
 - [ ] Merge source_ids across updates
 - [ ] Add canonical alias/collision policies
 
-### Phase 8 — Query and Automation
+### Phase 8 — Lint and Health Checks
 
-- [ ] CLI query command
-- [ ] Optional local HTTP API
-- [ ] Scheduled ingest examples
-- [ ] Agent integration examples
+- [x] Add `lint` CLI command
+- [x] Emit JSON health reports
+- [x] Detect broken wikilinks
+- [x] Detect missing page frontmatter
+- [x] Detect isolated orphan pages
+- [ ] Index completeness checks
+- [ ] Source drift checks
+
+### Phase 9 — Query and Automation
 
 ## Status
 
-MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, parse raw sources into structured blocks/chunks, call a local Codex HTTP/CLIProxyAPI endpoint for structured knowledge extraction, materialize extraction output into entity/concept Markdown pages, dry-run resolver create/update/skip decisions, apply resolver plans during page writes, and detect duplicate source content. The next goal is to add index/log maintenance and source-id merging so pages can be linked, audited, and updated over time.
+MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, parse raw sources into structured blocks/chunks, call a local Codex HTTP/CLIProxyAPI endpoint for structured knowledge extraction, materialize extraction output into entity/concept Markdown pages, dry-run resolver create/update/skip decisions, apply resolver plans during page writes, lint wiki health for broken links/frontmatter/orphans, and detect duplicate source content. The next goal is to add index/log maintenance and source-id merging so pages can be linked, audited, and updated over time.
 
 ## License
 

@@ -8,6 +8,7 @@ import click
 from memoweaver import __version__
 from memoweaver.ingest import ingest_file
 from memoweaver.llm import CodexHTTPProvider, extract_document_insights
+from memoweaver.lint import lint_wiki
 from memoweaver.parser import parse_wiki_raw_source
 from memoweaver.resolver import resolve_extraction_pages
 from memoweaver.storage import SourceRegistry
@@ -161,6 +162,23 @@ def resolve_pages(extraction_path: Path, wiki_path: Path) -> None:
     payload = json.loads(extraction_path.read_text(encoding="utf-8"))
     plan = resolve_extraction_pages(extraction_from_dict(payload), wiki_path=wiki_path)
     click.echo(json.dumps(plan.to_dict(), ensure_ascii=False, sort_keys=True))
+
+
+@cli.command("lint")
+@click.argument("wiki_path", type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.option("--json", "as_json", is_flag=True, help="Emit a machine-readable JSON report.")
+def lint_command(wiki_path: Path, as_json: bool) -> None:
+    """Check a MemoWeaver wiki for maintainability issues."""
+
+    report = lint_wiki(wiki_path)
+    if as_json:
+        click.echo(json.dumps(report.to_dict(), ensure_ascii=False, sort_keys=True))
+    else:
+        click.echo(f"MemoWeaver lint: {report.issue_count} issue(s), {report.error_count} error(s), {report.warning_count} warning(s)")
+        for issue in report.issues:
+            click.echo(f"{issue.severity.upper()} {issue.code} {issue.relative_path}: {issue.message}")
+    if report.issue_count:
+        raise click.exceptions.Exit(1)
 
 
 @cli.group()

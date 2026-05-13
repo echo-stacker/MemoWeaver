@@ -147,6 +147,9 @@ wiki/
 # Initialize a new wiki
 memoweaver init ./wiki --domain "AI research and engineering"
 
+# Register a source in the wiki state before ingestion
+memoweaver sources register ./reports/example.pdf --wiki ./wiki --kind pdf --title "Example report"
+
 # Ingest a document or URL
 memoweaver ingest ./reports/example.pdf --wiki ./wiki
 memoweaver ingest https://example.com/article --wiki ./wiki
@@ -195,21 +198,30 @@ wiki.lint()
 - [x] Create `index.md`
 - [x] Create `log.md`
 
-### Phase 2 — Markdown Ingestion
+### Phase 2 — Storage and Source Registry
+
+- [x] Create `.wiki-state/` state layout
+- [x] Create `sources.json`
+- [x] Create `ingest-history.jsonl`
+- [x] Create `llm-cache.json`
+- [x] Register sources by SHA-256
+- [x] Detect duplicate source content
+
+### Phase 3 — Markdown Ingestion
 
 - [ ] Ingest local Markdown files
 - [ ] Store immutable raw sources
 - [ ] Extract title, summary, entities, and concepts
 - [ ] Generate first wiki pages
 
-### Phase 3 — LLM Integration
+### Phase 4 — LLM Integration
 
 - [ ] Add pluggable LLM provider interface
 - [ ] Support OpenAI-compatible endpoints
 - [ ] Support local model gateways
 - [ ] Add structured extraction schemas
 
-### Phase 4 — Wiki Maintenance
+### Phase 5 — Wiki Maintenance
 
 - [ ] Backlink generation
 - [ ] Index maintenance
@@ -217,7 +229,7 @@ wiki.lint()
 - [ ] Orphan page detection
 - [ ] Duplicate page detection
 
-### Phase 5 — Query and Automation
+### Phase 6 — Query and Automation
 
 - [ ] CLI query command
 - [ ] Optional local HTTP API
@@ -226,7 +238,7 @@ wiki.lint()
 
 ## Status
 
-MemoWeaver is currently in the design/bootstrap stage. The initial goal is to build a minimal Python package that can initialize a wiki, ingest Markdown sources, and maintain index/log files reliably.
+MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, and detect duplicate source content. The next goal is to ingest local Markdown/TXT files into immutable raw-source storage and then generate the first maintained wiki pages.
 
 ## License
 

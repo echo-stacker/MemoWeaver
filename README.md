@@ -183,17 +183,17 @@ wiki.lint()
 
 ### Phase 0 — Project Skeleton
 
-- [ ] Create Python package layout
-- [ ] Add CLI entry point
-- [ ] Add config model
-- [ ] Add basic test suite
+- [x] Create Python package layout
+- [x] Add CLI entry point
+- [x] Add config model
+- [x] Add basic test suite
 
 ### Phase 1 — Wiki Initialization
 
-- [ ] Generate wiki folder structure
-- [ ] Create `SCHEMA.md`
-- [ ] Create `index.md`
-- [ ] Create `log.md`
+- [x] Generate wiki folder structure
+- [x] Create `SCHEMA.md`
+- [x] Create `index.md`
+- [x] Create `log.md`
 
 ### Phase 2 — Markdown Ingestion
 

@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "memoweaver"
+version = "0.1.0"
+description = "A headless Python service for building and maintaining LLM-native Markdown wikis."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "MemoWeaver contributors" }]
+dependencies = ["click>=8.0"]
+
+[project.scripts]
+memoweaver = "memoweaver.cli:cli"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

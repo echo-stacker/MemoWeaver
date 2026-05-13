@@ -1,0 +1,92 @@
+# --- MemoWeaver local planning docs ---
+# Local product/module planning notes. Keep these out of GitHub until they are ready.
+docs/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.python-version
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.ipynb_checkpoints/
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Build / packaging ---
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# --- Environment / secrets ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets.*
+
+# --- Logs / runtime files ---
+*.log
+logs/
+*.pid
+*.sqlite
+*.sqlite3
+*.db
+*.duckdb
+.cache/
+.cache-*/
+tmp/
+temp/
+
+# --- Local data / generated wiki outputs ---
+data/
+wiki/
+wikis/
+raw/
+outputs/
+artifacts/
+
+# --- OS / editor ---
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# --- Node tooling if docs/examples later use JS ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Test and benchmark outputs ---
+reports/
+coverage.xml
+junit.xml
+benchmark-results/

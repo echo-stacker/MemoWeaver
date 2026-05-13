@@ -3,9 +3,12 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from memoweaver.llm import LLMExtraction
+
+if TYPE_CHECKING:
+    from memoweaver.resolver import WikiChangePlan
 
 GENERATED_START = "<!-- memoweaver:generated:start -->"
 GENERATED_END = "<!-- memoweaver:generated:end -->"
@@ -57,17 +60,20 @@ def page_slug(title: str) -> str:
     return slug or "untitled"
 
 
-def write_extraction_pages(extraction: LLMExtraction, *, wiki_path: str | Path) -> WikiWriteResult:
+def write_extraction_pages(extraction: LLMExtraction, *, wiki_path: str | Path, plan: "WikiChangePlan | None" = None) -> WikiWriteResult:
     """Create/update Markdown entity and concept pages from LLM extraction.
 
-    This module is intentionally a writer, not a resolver. It does not merge
-    aliases, choose canonical names, or modify indexes/backlinks yet. Its job is
-    to give the project the first durable end-to-end artifact: structured LLM
-    output becomes real Markdown files with a generated section that can be
-    refreshed while preserving human edits outside the section.
+    Without a plan, the writer keeps its original slug-based behavior for simple
+    one-shot use. When a `WikiChangePlan` is supplied, path decisions come from
+    the resolver instead. That separation matters for long-lived wikis: resolver
+    owns canonical naming and alias matching; writer owns safe generated-section
+    replacement and preservation of human notes.
     """
 
     wiki = Path(wiki_path)
+    if plan is not None:
+        return _write_planned_pages(extraction, wiki=wiki, plan=plan)
+
     pages: list[WrittenPage] = []
 
     for entity in extraction.entities:
@@ -112,6 +118,27 @@ def extraction_from_dict(payload: dict[str, Any]) -> LLMExtraction:
     )
 
 
+def _write_planned_pages(extraction: LLMExtraction, *, wiki: Path, plan: "WikiChangePlan") -> WikiWriteResult:
+    entities = {str(entity.get("name") or "").strip(): entity for entity in extraction.entities if str(entity.get("name") or "").strip()}
+    concept_reasons = {str(concept).strip(): "extracted concept" for concept in extraction.concepts if str(concept).strip()}
+    for page in extraction.suggested_pages:
+        title = str(page.get("title") or "").strip()
+        if title and title not in concept_reasons:
+            concept_reasons[title] = str(page.get("reason") or "suggested by LLM").strip()
+
+    pages: list[WrittenPage] = []
+    for change in plan.changes:
+        if change.page_type == "entity":
+            entity = entities.get(change.title, {"name": change.title})
+            display_title = _existing_page_title(change.path, fallback=change.title) if change.action == "update" else change.title
+            body = _entity_page(display_title, entity, extraction)
+        else:
+            display_title = _existing_page_title(change.path, fallback=change.title) if change.action == "update" else change.title
+            body = _concept_page(display_title, extraction, reason=concept_reasons.get(change.title, "resolved from extraction"))
+        pages.append(_write_page(change.path, body))
+    return WikiWriteResult(wiki_path=wiki, pages=tuple(pages))
+
+
 def _write_page(path: Path, generated_body: str) -> WrittenPage:
     path.parent.mkdir(parents=True, exist_ok=True)
     created = not path.exists()
@@ -124,12 +151,37 @@ def _write_page(path: Path, generated_body: str) -> WrittenPage:
 
 
 def _replace_generated_section(existing: str, generated_body: str) -> str:
+    generated_section = _generated_section(generated_body)
     start = existing.find(GENERATED_START)
     end = existing.find(GENERATED_END)
     if start >= 0 and end > start:
         tail_start = end + len(GENERATED_END)
-        return existing[:start].rstrip() + "\n\n" + generated_body.rstrip() + existing[tail_start:].rstrip()
-    return existing.rstrip() + "\n\n" + generated_body.rstrip()
+        return existing[:start].rstrip() + "\n" + generated_section.rstrip() + existing[tail_start:].rstrip()
+    return existing.rstrip() + "\n\n" + generated_section.rstrip()
+
+
+def _generated_section(generated_body: str) -> str:
+    start = generated_body.find(GENERATED_START)
+    end = generated_body.find(GENERATED_END)
+    if start >= 0 and end > start:
+        return generated_body[start : end + len(GENERATED_END)]
+    return generated_body
+
+
+def _existing_page_title(path: Path, *, fallback: str) -> str:
+    if not path.exists():
+        return fallback
+    text = path.read_text(encoding="utf-8")
+    if text.startswith("---\n"):
+        end = text.find("\n---", 4)
+        if end != -1:
+            for line in text[4:end].splitlines():
+                if line.startswith("title:"):
+                    return line.split(":", 1)[1].strip() or fallback
+    for line in text.splitlines():
+        if line.startswith("# "):
+            return line[2:].strip() or fallback
+    return fallback
 
 
 def _entity_page(name: str, entity: dict[str, Any], extraction: LLMExtraction) -> str:

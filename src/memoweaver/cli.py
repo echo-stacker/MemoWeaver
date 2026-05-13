@@ -131,7 +131,8 @@ def extract(raw_path: Path, model: str | None) -> None:
 @cli.command("write-pages")
 @click.argument("extraction_path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
 @click.option("--wiki", "wiki_path", required=True, type=click.Path(path_type=Path), help="MemoWeaver wiki path.")
-def write_pages(extraction_path: Path, wiki_path: Path) -> None:
+@click.option("--resolve", "use_resolver", is_flag=True, help="Resolve aliases/existing pages before writing.")
+def write_pages(extraction_path: Path, wiki_path: Path, use_resolver: bool) -> None:
     """Write entity/concept Markdown pages from an extraction JSON file.
 
     This bridges the current MVP pipeline: `extract_document_insights()` can emit
@@ -140,7 +141,9 @@ def write_pages(extraction_path: Path, wiki_path: Path) -> None:
     """
 
     payload = json.loads(extraction_path.read_text(encoding="utf-8"))
-    result = write_extraction_pages(extraction_from_dict(payload), wiki_path=wiki_path)
+    extraction = extraction_from_dict(payload)
+    plan = resolve_extraction_pages(extraction, wiki_path=wiki_path) if use_resolver else None
+    result = write_extraction_pages(extraction, wiki_path=wiki_path, plan=plan)
     click.echo(json.dumps(result.to_dict(), ensure_ascii=False, sort_keys=True))
 
 

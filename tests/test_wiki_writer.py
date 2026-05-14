@@ -92,6 +92,38 @@ def test_write_extraction_pages_can_apply_resolver_plan_to_alias_target(tmp_path
     assert "MemoWeaver turns raw notes" in text
 
 
+def test_write_extraction_pages_merges_source_ids_when_updating_resolved_page(tmp_path: Path) -> None:
+    wiki_path = tmp_path / "wiki"
+    init_wiki(wiki_path)
+    canonical = wiki_path / "entities" / "memoweaver.md"
+    canonical.write_text(
+        "---\ntitle: MemoWeaver\ntype: entity\nsource_ids:\n  - src_original\naliases:\n  - Memo Weaver\n---\n# MemoWeaver\n\n## Manual Notes\n\nPreserve provenance and notes.\n",
+        encoding="utf-8",
+    )
+    extraction = LLMExtraction(
+        source_id="src_second",
+        summary="Second source adds details.",
+        entities=[{"name": "MemoWeaver", "type": "project"}],
+        concepts=[],
+        claims=[],
+        relations=[],
+        suggested_pages=[],
+    )
+
+    plan = resolve_extraction_pages(extraction, wiki_path=wiki_path)
+    result = write_extraction_pages(extraction, wiki_path=wiki_path, plan=plan)
+
+    assert result.created_count == 0
+    assert result.updated_count == 1
+    text = canonical.read_text(encoding="utf-8")
+    frontmatter = text.split("---", 2)[1]
+    assert "source_ids:\n  - src_original\n  - src_second" in frontmatter
+    assert frontmatter.count("src_original") == 1
+    assert frontmatter.count("src_second") == 1
+    assert "aliases:\n  - Memo Weaver" in frontmatter
+    assert "Preserve provenance and notes." in text
+
+
 def test_write_pages_cli_can_resolve_before_writing(tmp_path: Path) -> None:
     wiki_path = tmp_path / "wiki"
     extraction_path = tmp_path / "extraction.json"

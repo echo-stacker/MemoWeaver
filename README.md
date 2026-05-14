@@ -281,7 +281,7 @@ wiki.lint()
 - [x] Generate create/update/skip change plans
 - [x] Add resolver dry-run CLI
 - [x] Feed resolver plans into writer execution
-- [ ] Merge source_ids across updates
+- [x] Merge source_ids across updates
 - [ ] Add canonical alias/collision policies
 
 ### Phase 8 — Lint and Health Checks
@@ -298,7 +298,7 @@ wiki.lint()
 
 ## Status
 
-MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, parse raw sources into structured blocks/chunks, call a local Codex HTTP/CLIProxyAPI endpoint for structured knowledge extraction, persist/reuse extraction payloads in `.wiki-state/llm-cache.json`, materialize extraction output or cached source IDs into entity/concept Markdown pages, dry-run resolver create/update/skip decisions, apply resolver plans during page writes, maintain generated index entries and chronological write logs, lint wiki health for broken links/frontmatter/orphans, and detect duplicate source content. The next goal is to merge source IDs across updates so pages can be audited when multiple sources point to the same entity or concept.
+MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, parse raw sources into structured blocks/chunks, call a local Codex HTTP/CLIProxyAPI endpoint for structured knowledge extraction, persist/reuse extraction payloads in `.wiki-state/llm-cache.json`, materialize extraction output or cached source IDs into entity/concept Markdown pages, dry-run resolver create/update/skip decisions, apply resolver plans during page writes, merge page `source_ids` across updates, maintain generated index entries and chronological write logs, lint wiki health for broken links/frontmatter/orphans, and detect duplicate source content. The next goal is to add canonical alias/collision policies and richer lint checks so long-lived wikis remain auditable as pages accumulate.
 
 ## License
 

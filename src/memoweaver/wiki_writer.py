@@ -155,7 +155,9 @@ def _write_page(path: Path, generated_body: str) -> WrittenPage:
         path.write_text(generated_body + "\n", encoding="utf-8")
     else:
         existing = path.read_text(encoding="utf-8")
-        path.write_text(_replace_generated_section(existing, generated_body) + "\n", encoding="utf-8")
+        updated = _replace_generated_section(existing, generated_body)
+        updated = _merge_frontmatter_source_ids(updated, generated_body)
+        path.write_text(updated + "\n", encoding="utf-8")
     return WrittenPage(path=path, created=created)
 
 
@@ -167,6 +169,95 @@ def _replace_generated_section(existing: str, generated_body: str) -> str:
         tail_start = end + len(GENERATED_END)
         return existing[:start].rstrip() + "\n" + generated_section.rstrip() + existing[tail_start:].rstrip()
     return existing.rstrip() + "\n\n" + generated_section.rstrip()
+
+
+def _merge_frontmatter_source_ids(existing_text: str, generated_body: str) -> str:
+    """Merge the new extraction source id into existing page frontmatter.
+
+    Updates must preserve provenance from earlier sources. Because the writer
+    replaces only the generated body for existing pages, the existing
+    frontmatter remains authoritative for user-curated fields such as aliases;
+    this helper performs the one metadata mutation MemoWeaver owns: append the
+    latest generated ``source_ids`` without duplicating previous entries.
+    """
+
+    existing_bounds = _frontmatter_bounds(existing_text)
+    generated_bounds = _frontmatter_bounds(generated_body)
+    if existing_bounds is None or generated_bounds is None:
+        return existing_text
+
+    existing_start, existing_end = existing_bounds
+    generated_start, generated_end = generated_bounds
+    existing_frontmatter = existing_text[existing_start:existing_end]
+    generated_frontmatter = generated_body[generated_start:generated_end]
+    merged_ids = _dedupe_preserving_order(
+        _frontmatter_list_values(existing_frontmatter, "source_ids")
+        + _frontmatter_list_values(generated_frontmatter, "source_ids")
+    )
+    if not merged_ids:
+        return existing_text
+    merged_frontmatter = _replace_frontmatter_list(existing_frontmatter, "source_ids", merged_ids)
+    return existing_text[:existing_start] + merged_frontmatter + existing_text[existing_end:]
+
+
+def _frontmatter_bounds(text: str) -> tuple[int, int] | None:
+    if not text.startswith("---\n"):
+        return None
+    end = text.find("\n---", 4)
+    if end == -1:
+        return None
+    return 4, end
+
+
+def _frontmatter_list_values(frontmatter: str, key: str) -> list[str]:
+    values: list[str] = []
+    lines = frontmatter.splitlines()
+    collecting = False
+    for line in lines:
+        stripped = line.strip()
+        if collecting:
+            if stripped.startswith("-"):
+                value = stripped[1:].strip()
+                if value:
+                    values.append(value)
+                continue
+            if line and not line.startswith((" ", "\t")):
+                collecting = False
+        if stripped == f"{key}:":
+            collecting = True
+    return values
+
+
+def _replace_frontmatter_list(frontmatter: str, key: str, values: list[str]) -> str:
+    replacement = [f"{key}:", *(f"  - {value}" for value in values)]
+    lines = frontmatter.splitlines()
+    output: list[str] = []
+    index = 0
+    replaced = False
+    while index < len(lines):
+        line = lines[index]
+        if line.strip() == f"{key}:":
+            output.extend(replacement)
+            replaced = True
+            index += 1
+            while index < len(lines) and lines[index].strip().startswith("-"):
+                index += 1
+            continue
+        output.append(line)
+        index += 1
+    if not replaced:
+        output.extend(replacement)
+    return "\n".join(output)
+
+
+def _dedupe_preserving_order(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        if value not in seen:
+            seen.add(value)
+            result.append(value)
+    return result
 
 
 def _generated_section(generated_body: str) -> str:

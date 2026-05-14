@@ -263,7 +263,7 @@ wiki.lint()
 - [x] Preserve human edits outside generated blocks
 - [x] Add `write-pages` CLI command
 - [ ] Backlink generation
-- [ ] Index maintenance
+- [x] Index maintenance
 - [x] Broken link detection
 - [x] Orphan page detection
 - [ ] Duplicate page detection
@@ -292,7 +292,7 @@ wiki.lint()
 
 ## Status
 
-MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, parse raw sources into structured blocks/chunks, call a local Codex HTTP/CLIProxyAPI endpoint for structured knowledge extraction, materialize extraction output into entity/concept Markdown pages, dry-run resolver create/update/skip decisions, apply resolver plans during page writes, lint wiki health for broken links/frontmatter/orphans, and detect duplicate source content. The next goal is to add index/log maintenance and source-id merging so pages can be linked, audited, and updated over time.
+MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, parse raw sources into structured blocks/chunks, call a local Codex HTTP/CLIProxyAPI endpoint for structured knowledge extraction, materialize extraction output into entity/concept Markdown pages, dry-run resolver create/update/skip decisions, apply resolver plans during page writes, maintain generated index entries and chronological write logs, lint wiki health for broken links/frontmatter/orphans, and detect duplicate source content. The next goal is to persist extraction results into wiki state/cache and merge source IDs across updates so pages can be audited and updated without JSON file handoff.
 
 ## License
 

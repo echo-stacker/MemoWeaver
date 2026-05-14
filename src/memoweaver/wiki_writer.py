@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -12,6 +13,8 @@ if TYPE_CHECKING:
 
 GENERATED_START = "<!-- memoweaver:generated:start -->"
 GENERATED_END = "<!-- memoweaver:generated:end -->"
+INDEX_START = "<!-- memoweaver:index:start -->"
+INDEX_END = "<!-- memoweaver:index:end -->"
 
 
 @dataclass(frozen=True)
@@ -72,7 +75,10 @@ def write_extraction_pages(extraction: LLMExtraction, *, wiki_path: str | Path, 
 
     wiki = Path(wiki_path)
     if plan is not None:
-        return _write_planned_pages(extraction, wiki=wiki, plan=plan)
+        result = _write_planned_pages(extraction, wiki=wiki, plan=plan)
+        _maintain_index(wiki)
+        _append_write_log(wiki, extraction=extraction, result=result, skipped=plan.skipped)
+        return result
 
     pages: list[WrittenPage] = []
 
@@ -95,7 +101,10 @@ def write_extraction_pages(extraction: LLMExtraction, *, wiki_path: str | Path, 
         reason = str(page.get("reason") or "suggested by LLM").strip()
         pages.append(_write_page(wiki / "concepts" / f"{page_slug(title)}.md", _concept_page(title, extraction, reason=reason)))
 
-    return WikiWriteResult(wiki_path=wiki, pages=tuple(pages))
+    result = WikiWriteResult(wiki_path=wiki, pages=tuple(pages))
+    _maintain_index(wiki)
+    _append_write_log(wiki, extraction=extraction, result=result, skipped=())
+    return result
 
 
 def extraction_from_dict(payload: dict[str, Any]) -> LLMExtraction:
@@ -249,3 +258,67 @@ def _dict_list(value: Any) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         return []
     return [dict(item) for item in value if isinstance(item, dict)]
+
+
+def _maintain_index(wiki: Path) -> None:
+    """Refresh the generated page listing in ``index.md``.
+
+    The index is derived from Markdown files on disk rather than from the latest
+    write result only. That makes the command repair-friendly: rerunning
+    ``write-pages`` can restore a missing generated index section and include
+    pre-existing canonical pages targeted by the resolver.
+    """
+
+    index_path = wiki / "index.md"
+    existing = index_path.read_text(encoding="utf-8") if index_path.exists() else "# MemoWeaver Wiki Index\n"
+    section = _index_section(wiki)
+    index_path.write_text(_replace_marked_section(existing, section, start=INDEX_START, end=INDEX_END) + "\n", encoding="utf-8")
+
+
+def _index_section(wiki: Path) -> str:
+    lines = [INDEX_START, "", "## Generated Pages", ""]
+    for heading, directory in [("Entities", "entities"), ("Concepts", "concepts"), ("Comparisons", "comparisons"), ("Queries", "queries")]:
+        pages = _page_links(wiki, directory)
+        if not pages:
+            continue
+        lines.extend([f"### {heading}", ""])
+        lines.extend(pages)
+        lines.append("")
+    lines.append(INDEX_END)
+    return "\n".join(lines).rstrip()
+
+
+def _page_links(wiki: Path, directory: str) -> list[str]:
+    root = wiki / directory
+    if not root.exists():
+        return []
+    links: list[tuple[str, str]] = []
+    for path in sorted(root.glob("*.md")):
+        title = _existing_page_title(path, fallback=path.stem)
+        relative = path.relative_to(wiki).with_suffix("").as_posix()
+        links.append((title.lower(), f"- [[{relative}|{title}]]"))
+    return [line for _, line in sorted(links)]
+
+
+def _append_write_log(wiki: Path, *, extraction: LLMExtraction, result: WikiWriteResult, skipped: tuple[Any, ...]) -> None:
+    log_path = wiki / "log.md"
+    existing = log_path.read_text(encoding="utf-8") if log_path.exists() else "# MemoWeaver Maintenance Log\n"
+    timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    lines = [
+        f"- {timestamp} — Wiki pages written from `{extraction.source_id}`: {result.created_count} created, {result.updated_count} updated.",
+    ]
+    for page in result.pages:
+        action = "created" if page.created else "updated"
+        lines.append(f"  - {action} `{page.path.relative_to(wiki).as_posix()}`")
+    for change in skipped:
+        lines.append(f"  - skipped {change.reason} `{change.path.relative_to(wiki).as_posix()}`")
+    log_path.write_text(existing.rstrip() + "\n" + "\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _replace_marked_section(existing: str, new_section: str, *, start: str, end: str) -> str:
+    start_index = existing.find(start)
+    end_index = existing.find(end)
+    if start_index >= 0 and end_index > start_index:
+        tail_start = end_index + len(end)
+        return existing[:start_index].rstrip() + "\n\n" + new_section.rstrip() + existing[tail_start:].rstrip()
+    return existing.rstrip() + "\n\n" + new_section.rstrip()

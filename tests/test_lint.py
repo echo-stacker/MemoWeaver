@@ -58,6 +58,69 @@ def test_lint_wiki_reports_missing_frontmatter_and_orphans(tmp_path: Path) -> No
     assert ("orphan-page", "entities/linked-entity.md") not in codes_by_page
 
 
+def test_lint_wiki_reports_index_entries_missing_from_disk(tmp_path: Path) -> None:
+    wiki_path = tmp_path / "wiki"
+    init_wiki(wiki_path)
+    (wiki_path / "index.md").write_text(
+        "# Index\n\n"
+        "<!-- memoweaver:index:start -->\n\n"
+        "## Generated Pages\n\n"
+        "### Concepts\n\n"
+        "- [[concepts/missing-page|Missing Page]]\n\n"
+        "<!-- memoweaver:index:end -->\n",
+        encoding="utf-8",
+    )
+
+    report = lint_wiki(wiki_path)
+
+    issue = next(issue for issue in report.issues if issue.code == "index-missing-page")
+    assert issue.severity == "error"
+    assert issue.relative_path == "index.md"
+    assert "concepts/missing-page.md" in issue.message
+
+
+def test_lint_wiki_reports_pages_missing_from_generated_index(tmp_path: Path) -> None:
+    wiki_path = tmp_path / "wiki"
+    init_wiki(wiki_path)
+    _write_page(
+        wiki_path / "concepts" / "agent-memory.md",
+        "---\ntitle: Agent Memory\ntype: concept\n---\n# Agent Memory\n",
+    )
+    (wiki_path / "index.md").write_text(
+        "# Index\n\n"
+        "<!-- memoweaver:index:start -->\n\n"
+        "## Generated Pages\n\n"
+        "<!-- memoweaver:index:end -->\n",
+        encoding="utf-8",
+    )
+
+    report = lint_wiki(wiki_path)
+
+    issue = next(issue for issue in report.issues if issue.code == "index-unlisted-page")
+    assert issue.severity == "warning"
+    assert issue.relative_path == "concepts/agent-memory.md"
+    assert "not listed" in issue.message
+
+
+def test_lint_wiki_reports_duplicate_titles_and_aliases(tmp_path: Path) -> None:
+    wiki_path = tmp_path / "wiki"
+    init_wiki(wiki_path)
+    _write_page(
+        wiki_path / "concepts" / "agent-memory.md",
+        "---\ntitle: Agent Memory\ntype: concept\naliases:\n  - Memory Layer\n---\n# Agent Memory\n",
+    )
+    _write_page(
+        wiki_path / "entities" / "agent-memory-entity.md",
+        "---\ntitle: Agent Memory\ntype: entity\naliases:\n  - Memory Layer\n---\n# Agent Memory Entity\n",
+    )
+
+    report = lint_wiki(wiki_path)
+    issues = {(issue.code, issue.relative_path) for issue in report.issues}
+
+    assert ("duplicate-title", "entities/agent-memory-entity.md") in issues
+    assert ("duplicate-alias", "entities/agent-memory-entity.md") in issues
+
+
 def test_lint_report_to_dict_is_json_serializable(tmp_path: Path) -> None:
     wiki_path = tmp_path / "wiki"
     init_wiki(wiki_path)

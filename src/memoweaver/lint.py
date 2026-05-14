@@ -9,6 +9,8 @@ Severity = Literal["error", "warning"]
 
 WIKILINK_PATTERN = re.compile(r"\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]")
 CONTENT_DIRECTORIES = ("entities", "concepts", "comparisons", "queries")
+INDEX_START = "<!-- memoweaver:index:start -->"
+INDEX_END = "<!-- memoweaver:index:end -->"
 
 
 @dataclass(frozen=True)
@@ -115,6 +117,9 @@ def lint_wiki(wiki_path: str | Path) -> LintReport:
             else:
                 inbound[target].add(page)
 
+    issues.extend(_duplicate_metadata_issues(pages))
+    issues.extend(_index_completeness_issues(wiki, pages))
+
     # Treat "orphan" as an isolated content page, not merely a page with no
     # inbound links. This avoids flagging useful hub/index-style pages that link
     # outward and avoids noise for a one-page newborn wiki.
@@ -131,6 +136,95 @@ def lint_wiki(wiki_path: str | Path) -> LintReport:
                 )
 
     return LintReport(wiki_path=wiki, issues=tuple(sorted(issues, key=lambda issue: (issue.relative_path, issue.code, issue.message))))
+
+
+def _duplicate_metadata_issues(pages: list[Path]) -> list[LintIssue]:
+    """Detect title and alias collisions between existing pages.
+
+    Resolver relies on title/alias lookups to decide update targets. Reporting
+    collisions here keeps the resolver simple: lint surfaces ambiguous metadata
+    before an automated write accidentally updates the wrong canonical page.
+    """
+
+    issues: list[LintIssue] = []
+    seen_titles: dict[str, tuple[str, Path]] = {}
+    seen_aliases: dict[str, tuple[str, Path]] = {}
+    for page in pages:
+        text = page.read_text(encoding="utf-8")
+        title = _primary_page_title(page, text)
+        normalized_title = _normalize_title(title)
+        if normalized_title in seen_titles:
+            original_title, original_page = seen_titles[normalized_title]
+            issues.append(
+                LintIssue(
+                    code="duplicate-title",
+                    severity="error",
+                    page_path=page,
+                    message=f"Page title {title!r} duplicates {original_title!r} in {original_page.name}.",
+                )
+            )
+        else:
+            seen_titles[normalized_title] = (title, page)
+
+        for alias in _frontmatter_list_values(text, "aliases"):
+            normalized_alias = _normalize_title(alias)
+            if normalized_alias in seen_aliases:
+                original_alias, original_page = seen_aliases[normalized_alias]
+                issues.append(
+                    LintIssue(
+                        code="duplicate-alias",
+                        severity="error",
+                        page_path=page,
+                        message=f"Alias {alias!r} duplicates {original_alias!r} in {original_page.name}.",
+                    )
+                )
+            else:
+                seen_aliases[normalized_alias] = (alias, page)
+    return issues
+
+
+def _index_completeness_issues(wiki: Path, pages: list[Path]) -> list[LintIssue]:
+    """Compare the generated index section with pages on disk.
+
+    The check only runs when MemoWeaver's generated index markers are present.
+    Freshly initialized wikis do not have a generated section until pages are
+    written, and lint should not require users to hand-maintain that section.
+    """
+
+    index_path = wiki / "index.md"
+    if not index_path.exists():
+        return []
+    text = index_path.read_text(encoding="utf-8")
+    section = _marked_section(text, start=INDEX_START, end=INDEX_END)
+    if section is None:
+        return []
+
+    actual_paths = {page.relative_to(wiki).as_posix() for page in pages}
+    indexed_paths = {_index_link_to_relative_path(link) for link in _wikilinks(section)}
+    indexed_paths = {path for path in indexed_paths if path is not None}
+    issues: list[LintIssue] = []
+
+    for indexed_path in sorted(indexed_paths - actual_paths):
+        issues.append(
+            LintIssue(
+                code="index-missing-page",
+                severity="error",
+                page_path=Path("index.md"),
+                message=f"Generated index points to {indexed_path}, but that page does not exist on disk.",
+            )
+        )
+    for page in pages:
+        relative = page.relative_to(wiki).as_posix()
+        if relative not in indexed_paths:
+            issues.append(
+                LintIssue(
+                    code="index-unlisted-page",
+                    severity="warning",
+                    page_path=page,
+                    message=f"Page {relative} is not listed in the generated index section.",
+                )
+            )
+    return issues
 
 
 def _scan_pages(wiki: Path) -> list[Path]:
@@ -182,12 +276,71 @@ def _frontmatter(text: str) -> dict[str, str]:
     return metadata
 
 
+def _primary_page_title(page: Path, text: str) -> str:
+    frontmatter = _frontmatter(text)
+    if "title" in frontmatter:
+        return frontmatter["title"]
+    for line in text.splitlines():
+        if line.startswith("# "):
+            return line[2:].strip()
+    return page.stem.replace("-", " ").title()
+
+
+def _frontmatter_list_values(text: str, key: str) -> list[str]:
+    bounds = _frontmatter_bounds(text)
+    if bounds is None:
+        return []
+    start, end = bounds
+    values: list[str] = []
+    collecting = False
+    for line in text[start:end].splitlines():
+        stripped = line.strip()
+        if collecting:
+            if stripped.startswith("-"):
+                value = stripped[1:].strip()
+                if value:
+                    values.append(value)
+                continue
+            if line and not line.startswith((" ", "\t")):
+                collecting = False
+        if stripped == f"{key}:":
+            collecting = True
+    return values
+
+
+def _frontmatter_bounds(text: str) -> tuple[int, int] | None:
+    if not text.startswith("---\n"):
+        return None
+    end = text.find("\n---", 4)
+    if end == -1:
+        return None
+    return 4, end
+
+
 def _has_frontmatter(text: str) -> bool:
     return bool(_frontmatter(text))
 
 
 def _wikilinks(text: str) -> list[str]:
     return [match.group(1).strip() for match in WIKILINK_PATTERN.finditer(text) if match.group(1).strip()]
+
+
+def _marked_section(text: str, *, start: str, end: str) -> str | None:
+    start_index = text.find(start)
+    end_index = text.find(end)
+    if start_index == -1 or end_index <= start_index:
+        return None
+    return text[start_index + len(start) : end_index]
+
+
+def _index_link_to_relative_path(link_target: str) -> str | None:
+    target = link_target.strip()
+    if not any(target.startswith(f"{directory}/") for directory in CONTENT_DIRECTORIES):
+        return None
+    path = Path(target)
+    if path.suffix != ".md":
+        path = path.with_suffix(".md")
+    return path.as_posix()
 
 
 def _normalize_title(title: str) -> str:

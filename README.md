@@ -272,7 +272,7 @@ wiki.lint()
 - [x] Index maintenance
 - [x] Broken link detection
 - [x] Orphan page detection
-- [ ] Duplicate page detection
+- [x] Duplicate page detection
 
 ### Phase 7 — Resolver
 
@@ -291,14 +291,14 @@ wiki.lint()
 - [x] Detect broken wikilinks
 - [x] Detect missing page frontmatter
 - [x] Detect isolated orphan pages
-- [ ] Index completeness checks
+- [x] Index completeness checks
 - [ ] Source drift checks
 
 ### Phase 9 — Query and Automation
 
 ## Status
 
-MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, parse raw sources into structured blocks/chunks, call a local Codex HTTP/CLIProxyAPI endpoint for structured knowledge extraction, persist/reuse extraction payloads in `.wiki-state/llm-cache.json`, materialize extraction output or cached source IDs into entity/concept Markdown pages, dry-run resolver create/update/skip decisions, apply resolver plans during page writes, merge page `source_ids` across updates, maintain generated index entries and chronological write logs, lint wiki health for broken links/frontmatter/orphans, and detect duplicate source content. The next goal is to add canonical alias/collision policies and richer lint checks so long-lived wikis remain auditable as pages accumulate.
+MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, parse raw sources into structured blocks/chunks, call a local Codex HTTP/CLIProxyAPI endpoint for structured knowledge extraction, persist/reuse extraction payloads in `.wiki-state/llm-cache.json`, materialize extraction output or cached source IDs into entity/concept Markdown pages, dry-run resolver create/update/skip decisions, apply resolver plans during page writes, merge page `source_ids` across updates, maintain generated index entries and chronological write logs, lint wiki health for broken links/frontmatter/orphans/index completeness/duplicate titles and aliases, and detect duplicate source content. The next goal is to add backlink generation and canonical alias/collision policies so long-lived wikis become more navigable as pages accumulate.
 
 ## License
 

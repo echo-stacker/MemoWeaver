@@ -7,11 +7,11 @@ import click
 
 from memoweaver import __version__
 from memoweaver.ingest import ingest_file
-from memoweaver.llm import CodexHTTPProvider, extract_document_insights
+from memoweaver.llm import CodexHTTPProvider, LLM_SCHEMA_VERSION, extract_document_insights
 from memoweaver.lint import lint_wiki
 from memoweaver.parser import parse_wiki_raw_source
 from memoweaver.resolver import resolve_extraction_pages
-from memoweaver.storage import SourceRegistry
+from memoweaver.storage import LLMExtractionCache, SourceRegistry
 from memoweaver.wiki import init_wiki
 from memoweaver.wiki_writer import extraction_from_dict, write_extraction_pages
 
@@ -87,14 +87,16 @@ def parse(raw_path: Path) -> None:
 
 @cli.command()
 @click.argument("raw_path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option("--wiki", "wiki_path", default=None, type=click.Path(path_type=Path), help="MemoWeaver wiki path used for extraction cache.")
 @click.option("--model", default=None, help="Local Codex HTTP model name. Defaults to MEMOWEAVER_CODEX_MODEL or gpt-5.5.")
-def extract(raw_path: Path, model: str | None) -> None:
+@click.option("--refresh", is_flag=True, help="Ignore any cached extraction and call the LLM again.")
+@click.option("--full-json", "full_json", is_flag=True, help="Emit the full extraction payload instead of a compact summary.")
+def extract(raw_path: Path, wiki_path: Path | None, model: str | None, refresh: bool, full_json: bool) -> None:
     """Extract structured wiki knowledge via local Codex HTTP/CLIProxyAPI.
 
-    The command is intentionally the first narrow LLM integration: it parses one
-    ingested raw source, calls the local OpenAI-compatible Codex endpoint, and
-    prints a compact JSON summary. Full extraction payloads are available through
-    the Python API and will feed the future wiki writer module.
+    When ``--wiki`` is provided, extraction payloads are stored in
+    ``.wiki-state/llm-cache.json`` and reused on later runs with the same
+    source/model/schema. Use ``--refresh`` to force a new LLM call.
     """
 
     document = parse_wiki_raw_source(raw_path)
@@ -107,21 +109,37 @@ def extract(raw_path: Path, model: str | None) -> None:
             timeout=provider.timeout,
             temperature=provider.temperature,
         )
-    try:
-        extraction = extract_document_insights(document, provider=provider)
-    except Exception as exc:
-        raise click.ClickException(str(exc)) from exc
+    cache = LLMExtractionCache.open(wiki_path) if wiki_path is not None else None
+    cached = cache.get(document.source_id, model=provider.model, schema_version=LLM_SCHEMA_VERSION) if cache and not refresh else None
+    if cached is not None:
+        payload = cached
+        is_cached = True
+    else:
+        try:
+            extraction = extract_document_insights(document, provider=provider)
+        except Exception as exc:
+            raise click.ClickException(str(exc)) from exc
+        payload = extraction.to_dict()
+        if cache is not None:
+            payload = cache.put(payload, model=provider.model, schema_version=LLM_SCHEMA_VERSION)
+        is_cached = False
+
+    if full_json:
+        click.echo(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+        return
+
     click.echo(
         json.dumps(
             {
                 "schema_version": 1,
-                "source_id": extraction.source_id,
-                "summary": extraction.summary,
-                "entity_count": len(extraction.entities),
-                "concept_count": len(extraction.concepts),
-                "claim_count": len(extraction.claims),
-                "relation_count": len(extraction.relations),
-                "suggested_page_count": len(extraction.suggested_pages),
+                "source_id": payload.get("source_id", ""),
+                "summary": payload.get("summary", ""),
+                "entity_count": len(payload.get("entities") or []),
+                "concept_count": len(payload.get("concepts") or []),
+                "claim_count": len(payload.get("claims") or []),
+                "relation_count": len(payload.get("relations") or []),
+                "suggested_page_count": len(payload.get("suggested_pages") or []),
+                "cached": is_cached,
             },
             ensure_ascii=False,
             sort_keys=True,
@@ -130,18 +148,26 @@ def extract(raw_path: Path, model: str | None) -> None:
 
 
 @cli.command("write-pages")
-@click.argument("extraction_path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.argument("extraction_path", required=False, type=click.Path(exists=True, dir_okay=False, path_type=Path))
 @click.option("--wiki", "wiki_path", required=True, type=click.Path(path_type=Path), help="MemoWeaver wiki path.")
 @click.option("--resolve", "use_resolver", is_flag=True, help="Resolve aliases/existing pages before writing.")
-def write_pages(extraction_path: Path, wiki_path: Path, use_resolver: bool) -> None:
-    """Write entity/concept Markdown pages from an extraction JSON file.
+@click.option("--source-id", default=None, help="Load extraction payload from the wiki LLM cache instead of a JSON file.")
+@click.option("--model", default="gpt-5.5", show_default=True, help="Model key used when reading cached extraction payloads.")
+def write_pages(extraction_path: Path | None, wiki_path: Path, use_resolver: bool, source_id: str | None, model: str) -> None:
+    """Write entity/concept Markdown pages from an extraction JSON file or cache.
 
-    This bridges the current MVP pipeline: `extract_document_insights()` can emit
-    `LLMExtraction.to_dict()`, and this command materializes that structure as
-    durable Markdown pages while preserving human edits outside generated blocks.
+    Pass EXTRACTION_PATH for fixture/file based usage, or ``--source-id`` to load
+    a cached extraction from ``.wiki-state/llm-cache.json``.
     """
 
-    payload = json.loads(extraction_path.read_text(encoding="utf-8"))
+    if source_id:
+        payload = LLMExtractionCache.open(wiki_path).get(source_id, model=model, schema_version=LLM_SCHEMA_VERSION)
+        if payload is None:
+            raise click.ClickException(f"No cached extraction for source_id={source_id!r} model={model!r}")
+    elif extraction_path is not None:
+        payload = json.loads(extraction_path.read_text(encoding="utf-8"))
+    else:
+        raise click.ClickException("Provide EXTRACTION_PATH or --source-id.")
     extraction = extraction_from_dict(payload)
     plan = resolve_extraction_pages(extraction, wiki_path=wiki_path) if use_resolver else None
     result = write_extraction_pages(extraction, wiki_path=wiki_path, plan=plan)

@@ -157,14 +157,17 @@ memoweaver ingest ./notes/raw-notes.txt --wiki ./wiki
 # Parse an ingested raw source into a structured document summary
 memoweaver parse ./wiki/raw/articles/src_abc123.md
 
-# Extract structured knowledge with local Codex HTTP/CLIProxyAPI
+# Extract structured knowledge with local Codex HTTP/CLIProxyAPI and cache it in wiki state
 export CLIPROXYAPI_BASE_URL=http://127.0.0.1:8317/v1
 export CLIPROXYAPI_API_KEY=... # or configure CLIProxyAPI locally
-memoweaver extract ./wiki/raw/articles/src_abc123.md --model gpt-5.5
+memoweaver extract ./wiki/raw/articles/src_abc123.md --wiki ./wiki --model gpt-5.5
+memoweaver extract ./wiki/raw/articles/src_abc123.md --wiki ./wiki --full-json
+memoweaver extract ./wiki/raw/articles/src_abc123.md --wiki ./wiki --refresh
 
 # Materialize a saved extraction payload into Markdown pages
 memoweaver write-pages ./extraction.json --wiki ./wiki
 memoweaver write-pages ./extraction.json --wiki ./wiki --resolve
+memoweaver write-pages --wiki ./wiki --source-id src_abc123 --model gpt-5.5
 
 # Check wiki health
 memoweaver lint ./wiki
@@ -253,7 +256,10 @@ wiki.lint()
 - [x] Support OpenAI-compatible endpoints
 - [x] Support local Codex HTTP/CLIProxyAPI gateway
 - [x] Add structured extraction schemas
-- [ ] Persist extraction results into wiki state/cache
+- [x] Persist extraction results into wiki state/cache
+- [x] Reuse cached extractions by source/model/schema
+- [x] Add `extract --refresh` and `extract --full-json`
+- [x] Let `write-pages` load cached extractions by `--source-id`
 
 ### Phase 6 — Wiki Page Writer
 
@@ -292,7 +298,7 @@ wiki.lint()
 
 ## Status
 
-MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, parse raw sources into structured blocks/chunks, call a local Codex HTTP/CLIProxyAPI endpoint for structured knowledge extraction, materialize extraction output into entity/concept Markdown pages, dry-run resolver create/update/skip decisions, apply resolver plans during page writes, maintain generated index entries and chronological write logs, lint wiki health for broken links/frontmatter/orphans, and detect duplicate source content. The next goal is to persist extraction results into wiki state/cache and merge source IDs across updates so pages can be audited and updated without JSON file handoff.
+MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, parse raw sources into structured blocks/chunks, call a local Codex HTTP/CLIProxyAPI endpoint for structured knowledge extraction, persist/reuse extraction payloads in `.wiki-state/llm-cache.json`, materialize extraction output or cached source IDs into entity/concept Markdown pages, dry-run resolver create/update/skip decisions, apply resolver plans during page writes, maintain generated index entries and chronological write logs, lint wiki health for broken links/frontmatter/orphans, and detect duplicate source content. The next goal is to merge source IDs across updates so pages can be audited when multiple sources point to the same entity or concept.
 
 ## License
 

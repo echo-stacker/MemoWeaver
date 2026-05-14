@@ -124,6 +124,56 @@ def initialize_state(wiki_path: str | Path) -> StorageState:
     )
 
 
+class LLMExtractionCache:
+    """Read and write structured LLM extraction payloads.
+
+    Cache entries are keyed by source id, model, and extraction schema version so
+    MemoWeaver can reuse deterministic extraction results without hiding when a
+    model/schema change should trigger a fresh call. The cache stores plain
+    dictionaries to avoid coupling the storage layer to LLM provider classes.
+    """
+
+    def __init__(self, state: StorageState) -> None:
+        self.state = state
+
+    @classmethod
+    def open(cls, wiki_path: str | Path) -> "LLMExtractionCache":
+        return cls(initialize_state(wiki_path))
+
+    def get(self, source_id: str, *, model: str, schema_version: int) -> dict[str, Any] | None:
+        data = self._read_cache_document()
+        entry = data.get("entries", {}).get(self.cache_key(source_id, model=model, schema_version=schema_version))
+        if not isinstance(entry, dict):
+            return None
+        extraction = entry.get("extraction")
+        return dict(extraction) if isinstance(extraction, dict) else None
+
+    def put(self, extraction: Any, *, model: str, schema_version: int) -> dict[str, Any]:
+        payload = extraction.to_dict() if hasattr(extraction, "to_dict") else dict(extraction)
+        source_id = str(payload.get("source_id") or "")
+        if not source_id:
+            raise ValueError("Cached extraction payload must include source_id")
+        data = self._read_cache_document()
+        entries = dict(data.get("entries", {}))
+        entries[self.cache_key(source_id, model=model, schema_version=schema_version)] = {
+            "schema_version": SCHEMA_VERSION,
+            "source_id": source_id,
+            "model": model,
+            "extraction_schema_version": schema_version,
+            "cached_at": _utc_now(),
+            "extraction": payload,
+        }
+        _write_json(self.state.llm_cache_path, {"schema_version": SCHEMA_VERSION, "entries": entries})
+        return payload
+
+    @staticmethod
+    def cache_key(source_id: str, *, model: str, schema_version: int) -> str:
+        return f"{source_id}::{model}::schema-{schema_version}"
+
+    def _read_cache_document(self) -> dict[str, Any]:
+        return json.loads(self.state.llm_cache_path.read_text(encoding="utf-8"))
+
+
 class SourceRegistry:
     """Read and write MemoWeaver's source registry.
 

@@ -10,7 +10,7 @@ from memoweaver.query import WikiAnswer, WikiSearchResult, ask_wiki, search_wiki
 from memoweaver.resolver import WikiChange, WikiChangePlan, resolve_extraction_pages, scan_wiki_pages
 from memoweaver.storage import SourceRecord, SourceRegistry, StorageState, initialize_state
 from memoweaver.wiki import WikiInitResult, init_wiki
-from memoweaver.wiki_writer import WikiWriteResult, write_extraction_pages
+from memoweaver.wiki_writer import WikiWriteResult, maintain_backlinks, write_extraction_pages
 
 __all__ = [
     "MemoWeaverConfig",
@@ -38,6 +38,7 @@ __all__ = [
     "ingest_file",
     "init_wiki",
     "initialize_state",
+    "maintain_backlinks",
     "parse_file",
     "parse_wiki_raw_source",
     "parse_wikilinks",

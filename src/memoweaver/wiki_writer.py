@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from memoweaver.graph import WikiGraph, build_wiki_graph
 from memoweaver.llm import LLMExtraction
 
 if TYPE_CHECKING:
@@ -15,6 +16,8 @@ GENERATED_START = "<!-- memoweaver:generated:start -->"
 GENERATED_END = "<!-- memoweaver:generated:end -->"
 INDEX_START = "<!-- memoweaver:index:start -->"
 INDEX_END = "<!-- memoweaver:index:end -->"
+BACKLINKS_START = "<!-- memoweaver:backlinks:start -->"
+BACKLINKS_END = "<!-- memoweaver:backlinks:end -->"
 
 
 @dataclass(frozen=True)
@@ -77,6 +80,7 @@ def write_extraction_pages(extraction: LLMExtraction, *, wiki_path: str | Path, 
     if plan is not None:
         result = _write_planned_pages(extraction, wiki=wiki, plan=plan)
         _maintain_index(wiki)
+        maintain_backlinks(wiki)
         _append_write_log(wiki, extraction=extraction, result=result, skipped=plan.skipped)
         return result
 
@@ -103,8 +107,27 @@ def write_extraction_pages(extraction: LLMExtraction, *, wiki_path: str | Path, 
 
     result = WikiWriteResult(wiki_path=wiki, pages=tuple(pages))
     _maintain_index(wiki)
+    maintain_backlinks(wiki)
     _append_write_log(wiki, extraction=extraction, result=result, skipped=())
     return result
+
+
+def maintain_backlinks(wiki_path: str | Path) -> None:
+    """Refresh managed backlink blocks for every page in a MemoWeaver wiki.
+
+    Backlinks are derived from the reusable graph layer and written inside their
+    own marker-protected block. Human notes outside the block are preserved, and
+    stale generated backlink entries are replaced on every run.
+    """
+
+    wiki = Path(wiki_path)
+    graph = build_wiki_graph(wiki)
+    for node in graph.nodes:
+        text = node.path.read_text(encoding="utf-8")
+        backlink_section = _backlinks_section(node.relative_path, graph=graph)
+        updated = _replace_marked_section(text, backlink_section, start=BACKLINKS_START, end=BACKLINKS_END) if backlink_section else _remove_marked_section(text, start=BACKLINKS_START, end=BACKLINKS_END)
+        if updated != text.rstrip():
+            node.path.write_text(updated.rstrip() + "\n", encoding="utf-8")
 
 
 def extraction_from_dict(payload: dict[str, Any]) -> LLMExtraction:
@@ -341,8 +364,15 @@ def _knowledge_sections(extraction: LLMExtraction) -> list[str]:
             target = relation.get("target", "")
             kind = relation.get("type", "relates_to")
             if source or target:
-                sections.append(f"- {source} — {kind} — {target}")
+                source_text = _relation_endpoint(source)
+                target_text = _relation_endpoint(target)
+                sections.append(f"- {source_text} — {kind} — {target_text}")
     return sections
+
+
+def _relation_endpoint(value: Any) -> str:
+    text = str(value or "").strip()
+    return f"[[{text}]]" if text else ""
 
 
 def _dict_list(value: Any) -> list[dict[str, Any]]:
@@ -391,6 +421,20 @@ def _page_links(wiki: Path, directory: str) -> list[str]:
     return [line for _, line in sorted(links)]
 
 
+def _backlinks_section(relative_path: str, *, graph: WikiGraph) -> str:
+    inbound = graph.inbound_paths(relative_path)
+    if not inbound:
+        return ""
+    lines = [BACKLINKS_START, "", "## Backlinks", ""]
+    for inbound_path in inbound:
+        node = graph.node_for_path(inbound_path)
+        title = node.title if node is not None else Path(inbound_path).stem
+        target = Path(inbound_path).with_suffix("").as_posix()
+        lines.append(f"- [[{target}|{title}]]")
+    lines.append(BACKLINKS_END)
+    return "\n".join(lines)
+
+
 def _append_write_log(wiki: Path, *, extraction: LLMExtraction, result: WikiWriteResult, skipped: tuple[Any, ...]) -> None:
     log_path = wiki / "log.md"
     existing = log_path.read_text(encoding="utf-8") if log_path.exists() else "# MemoWeaver Maintenance Log\n"
@@ -413,3 +457,12 @@ def _replace_marked_section(existing: str, new_section: str, *, start: str, end:
         tail_start = end_index + len(end)
         return existing[:start_index].rstrip() + "\n\n" + new_section.rstrip() + existing[tail_start:].rstrip()
     return existing.rstrip() + "\n\n" + new_section.rstrip()
+
+
+def _remove_marked_section(existing: str, *, start: str, end: str) -> str:
+    start_index = existing.find(start)
+    end_index = existing.find(end)
+    if start_index >= 0 and end_index > start_index:
+        tail_start = end_index + len(end)
+        return (existing[:start_index].rstrip() + existing[tail_start:]).rstrip()
+    return existing.rstrip()

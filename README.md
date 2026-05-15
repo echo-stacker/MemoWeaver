@@ -269,7 +269,7 @@ wiki.lint()
 - [x] Create suggested pages from extraction output
 - [x] Preserve human edits outside generated blocks
 - [x] Add `write-pages` CLI command
-- [ ] Backlink generation
+- [x] Backlink generation
 - [x] Index maintenance
 - [x] Broken link detection
 - [x] Orphan page detection
@@ -312,12 +312,12 @@ wiki.lint()
 - [x] Build reusable inbound/outbound wiki graph maps
 - [x] Detect isolated graph nodes through shared graph API
 - [x] Expose graph expansion for query context enrichment
-- [ ] Generate managed backlinks blocks in wiki pages
+- [x] Generate managed backlinks blocks in wiki pages
 - [ ] Refactor lint broken-link/orphan checks onto graph API
 
 ## Status
 
-MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, parse raw sources into structured blocks/chunks, call a local Codex HTTP/CLIProxyAPI endpoint for structured knowledge extraction, persist/reuse extraction payloads in `.wiki-state/llm-cache.json`, materialize extraction output or cached source IDs into entity/concept Markdown pages, dry-run resolver create/update/skip decisions, apply resolver plans during page writes, merge page `source_ids` across updates, maintain generated index entries and chronological write logs, lint wiki health for broken links/frontmatter/orphans/index completeness/duplicate titles and aliases, detect duplicate source content, build a reusable wikilink graph, search maintained wiki pages, answer questions with local Codex HTTP/CLIProxyAPI using matched pages plus graph-expanded neighbors as grounded context, and optionally save answers into `queries/`. The next goal is to generate managed backlink blocks from the graph layer and then refactor lint checks onto the shared graph API.
+MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, parse raw sources into structured blocks/chunks, call a local Codex HTTP/CLIProxyAPI endpoint for structured knowledge extraction, persist/reuse extraction payloads in `.wiki-state/llm-cache.json`, materialize extraction output or cached source IDs into entity/concept Markdown pages, dry-run resolver create/update/skip decisions, apply resolver plans during page writes, merge page `source_ids` across updates, maintain generated index entries, managed backlinks, and chronological write logs, lint wiki health for broken links/frontmatter/orphans/index completeness/duplicate titles and aliases, detect duplicate source content, build a reusable wikilink graph, search maintained wiki pages, answer questions with local Codex HTTP/CLIProxyAPI using matched pages plus graph-expanded neighbors as grounded context, and optionally save answers into `queries/`. The next goal is to refactor lint broken-link/orphan checks onto the shared graph API, then add source drift checks.
 
 ## License
 

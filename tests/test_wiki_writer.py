@@ -9,7 +9,7 @@ from memoweaver.cli import cli
 from memoweaver.llm import LLMExtraction
 from memoweaver.resolver import resolve_extraction_pages
 from memoweaver.wiki import init_wiki
-from memoweaver.wiki_writer import page_slug, write_extraction_pages
+from memoweaver.wiki_writer import BACKLINKS_END, BACKLINKS_START, maintain_backlinks, page_slug, write_extraction_pages
 
 
 def _extraction() -> LLMExtraction:
@@ -160,3 +160,63 @@ def test_write_pages_cli_reads_extraction_json_and_outputs_summary(tmp_path: Pat
     assert payload["updated_count"] == 0
     assert "entities/memoweaver.md" in payload["written_pages"]
     assert wiki_path.joinpath("entities", "memoweaver.md").exists()
+
+
+def test_maintain_backlinks_writes_managed_inbound_link_blocks(tmp_path: Path) -> None:
+    wiki_path = tmp_path / "wiki"
+    init_wiki(wiki_path)
+    source = wiki_path / "entities" / "memoweaver.md"
+    target = wiki_path / "concepts" / "llm-native-wiki.md"
+    source.write_text("---\ntitle: MemoWeaver\ntype: entity\n---\n# MemoWeaver\n\nUses [[LLM-native wiki]].\n", encoding="utf-8")
+    target.write_text("---\ntitle: LLM-native wiki\ntype: concept\n---\n# LLM-native wiki\n\n## Manual Notes\n\nKeep this note.\n", encoding="utf-8")
+
+    maintain_backlinks(wiki_path)
+
+    text = target.read_text(encoding="utf-8")
+    assert BACKLINKS_START in text
+    assert "## Backlinks" in text
+    assert "- [[entities/memoweaver|MemoWeaver]]" in text
+    assert "Keep this note." in text
+
+
+def test_maintain_backlinks_replaces_stale_managed_blocks(tmp_path: Path) -> None:
+    wiki_path = tmp_path / "wiki"
+    init_wiki(wiki_path)
+    source = wiki_path / "entities" / "memoweaver.md"
+    target = wiki_path / "concepts" / "llm-native-wiki.md"
+    source.write_text("---\ntitle: MemoWeaver\ntype: entity\n---\n# MemoWeaver\n\nUses [[LLM-native wiki]].\n", encoding="utf-8")
+    target.write_text(
+        "---\ntitle: LLM-native wiki\ntype: concept\n---\n# LLM-native wiki\n\n"
+        f"{BACKLINKS_START}\n\n## Backlinks\n\n- [[concepts/stale|Stale]]\n{BACKLINKS_END}\n\n## Manual Notes\n\nKeep this note.\n",
+        encoding="utf-8",
+    )
+
+    maintain_backlinks(wiki_path)
+
+    text = target.read_text(encoding="utf-8")
+    assert text.count(BACKLINKS_START) == 1
+    assert "[[concepts/stale|Stale]]" not in text
+    assert "- [[entities/memoweaver|MemoWeaver]]" in text
+    assert "Keep this note." in text
+
+
+def test_write_extraction_pages_generates_relation_wikilinks_and_backlinks(tmp_path: Path) -> None:
+    wiki_path = tmp_path / "wiki"
+    init_wiki(wiki_path)
+    extraction = LLMExtraction(
+        source_id="src_relations",
+        summary="MemoWeaver uses graph-aware wiki context.",
+        entities=[{"name": "MemoWeaver", "type": "project"}],
+        concepts=["LLM-native wiki"],
+        claims=[],
+        relations=[{"source": "MemoWeaver", "target": "LLM-native wiki", "type": "uses"}],
+        suggested_pages=[],
+        raw_response={},
+    )
+
+    write_extraction_pages(extraction, wiki_path=wiki_path)
+
+    source_text = wiki_path.joinpath("entities", "memoweaver.md").read_text(encoding="utf-8")
+    target_text = wiki_path.joinpath("concepts", "llm-native-wiki.md").read_text(encoding="utf-8")
+    assert "[[LLM-native wiki]]" in source_text
+    assert "- [[entities/memoweaver|MemoWeaver]]" in target_text

@@ -138,6 +138,8 @@ def parse_file(source_path: str | Path, *, source_id: str | None = None, metadat
         return parse_markdown_text(text, source_id=effective_source_id, source_path=path, metadata=metadata)
     if path.suffix.lower() == ".txt":
         return parse_plain_text(text, source_id=effective_source_id, source_path=path, metadata=metadata)
+    if path.suffix.lower() == ".jsonl":
+        return parse_jsonl_news_archive(text, source_id=effective_source_id, source_path=path, metadata=metadata)
     raise ValueError(f"Unsupported parse type: {path.suffix or '<no extension>'}")
 
 
@@ -243,6 +245,69 @@ def parse_markdown_text(
     return _document(source_id, source_path, title, headings, blocks, metadata)
 
 
+def parse_jsonl_news_archive(
+    text: str,
+    *,
+    source_id: str,
+    source_path: Path,
+    metadata: dict[str, Any] | None = None,
+) -> ParsedDocument:
+    """Parse normalized wire-news JSONL archives into LLM-friendly blocks.
+
+    This adapter is intentionally source-neutral. It understands the normalized
+    fields used by the market-intelligence archive (`source_name`, `date`,
+    `time`, `title`, `content`, `subjects`, `stocks`, `url`) without importing
+    that project. Invalid or non-object JSONL rows are skipped instead of
+    aborting the whole daily archive.
+    """
+
+    rows: list[tuple[int, dict[str, Any]]] = []
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        if not line.strip():
+            continue
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            rows.append((line_number, payload))
+
+    dates = sorted({_clean_scalar(row.get("date")) for _, row in rows if _clean_scalar(row.get("date"))})
+    sources = sorted({_clean_scalar(row.get("source_name") or row.get("source")) for _, row in rows if _clean_scalar(row.get("source_name") or row.get("source"))})
+    source_label = sources[0] if len(sources) == 1 else "多来源"
+    date_label = dates[0] if len(dates) == 1 else (", ".join(dates[:3]) if dates else source_path.stem)
+    title = f"{source_label} {date_label} 新闻归档"
+
+    headings = [Heading(level=1, text=title, line=1)]
+    blocks: list[ParsedBlock] = [ParsedBlock("heading", f"# {title}", 1, 1, {"level": 1, "text": title})]
+    for line_number, row in rows:
+        item_title = _clean_scalar(row.get("title")) or "无标题"
+        item_time = _clean_scalar(row.get("time"))
+        heading_text = f"{item_time}｜{item_title}" if item_time else item_title
+        headings.append(Heading(level=2, text=heading_text, line=line_number))
+        blocks.append(ParsedBlock("heading", f"## {heading_text}", line_number, line_number, {"level": 2, "text": heading_text}))
+        blocks.append(
+            ParsedBlock(
+                "jsonl_record",
+                _format_news_record(row),
+                line_number,
+                line_number,
+                {
+                    "item_id": _clean_scalar(row.get("id")),
+                    "source": _clean_scalar(row.get("source")),
+                    "source_name": _clean_scalar(row.get("source_name")),
+                    "date": _clean_scalar(row.get("date")),
+                    "time": item_time,
+                    "title": item_title,
+                },
+            )
+        )
+
+    merged_metadata = dict(metadata or {})
+    merged_metadata.update({"item_count": len(rows), "sources": sources, "dates": dates})
+    return _document(source_id, source_path, title, headings, blocks, merged_metadata)
+
+
 def parse_plain_text(
     text: str,
     *,
@@ -274,6 +339,48 @@ def parse_plain_text(
     flush(len(lines))
 
     return _document(source_id, source_path, _first_non_empty_line(lines), [], blocks, metadata)
+
+
+def _format_news_record(row: dict[str, Any]) -> str:
+    lines: list[str] = []
+    source = _clean_scalar(row.get("source_name") or row.get("source"))
+    item_id = _clean_scalar(row.get("id"))
+    date = _clean_scalar(row.get("date"))
+    time = _clean_scalar(row.get("time"))
+    title = _clean_scalar(row.get("title")) or "无标题"
+    content = _clean_scalar(row.get("content") or row.get("brief"))
+    subjects = [_clean_scalar(value) for value in row.get("subjects") or [] if _clean_scalar(value)]
+    stocks = [_format_stock(value) for value in row.get("stocks") or [] if isinstance(value, dict)]
+    stocks = [value for value in stocks if value]
+    url = _clean_scalar(row.get("url"))
+
+    lines.append(f"标题: {title}")
+    if source or item_id:
+        lines.append(f"来源: {source or 'unknown'}" + (f" / {item_id}" if item_id else ""))
+    if date or time:
+        lines.append(f"时间: {' '.join(value for value in [date, time] if value)}")
+    if subjects:
+        lines.append("主题: " + "，".join(subjects))
+    if stocks:
+        lines.append("股票: " + "，".join(stocks))
+    if url:
+        lines.append(f"url: {url}")
+    if content:
+        lines.append("")
+        lines.append(content)
+    return "\n".join(lines)
+
+
+def _format_stock(stock: dict[str, Any]) -> str:
+    name = _clean_scalar(stock.get("name"))
+    code = _clean_scalar(stock.get("code"))
+    if name and code:
+        return f"{name}({code})"
+    return name or code
+
+
+def _clean_scalar(value: Any) -> str:
+    return " ".join(str(value or "").replace("\u3000", " ").split())
 
 
 def _document(

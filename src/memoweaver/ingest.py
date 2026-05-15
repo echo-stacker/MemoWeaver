@@ -12,6 +12,7 @@ SUPPORTED_LOCAL_KINDS = {
     ".md": "markdown",
     ".markdown": "markdown",
     ".txt": "text",
+    ".jsonl": "jsonl-news",
 }
 
 

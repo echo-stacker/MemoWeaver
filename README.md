@@ -155,6 +155,9 @@ memoweaver ingest ./notes/example.md --wiki ./wiki --title "Example note"
 memoweaver ingest ./notes/raw-notes.txt --wiki ./wiki
 memoweaver ingest ./sources/cls/data/2026/2026-05-14.jsonl --wiki ./wiki --title "财联社快讯 2026-05-14"
 
+# Or ingest a normalized daily news archive from a market-intelligence repo
+memoweaver ingest-news-archive /path/to/market-archive --wiki ./wiki --date 2026-05-14 --source cls
+
 # Parse an ingested raw source into a structured document summary
 memoweaver parse ./wiki/raw/articles/src_abc123.md
 
@@ -236,6 +239,7 @@ wiki.lint()
 - [x] Ingest local Markdown files
 - [x] Ingest local TXT files
 - [x] Ingest normalized JSONL news archives
+- [x] Add `ingest-news-archive` repo/date/source adapter
 - [x] Store immutable raw sources
 - [x] Write raw-source metadata sidecars
 - [x] Skip duplicate content by SHA-256
@@ -320,7 +324,7 @@ wiki.lint()
 
 ## Status
 
-MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files and normalized JSONL news archives into immutable raw-source storage, parse raw sources into structured blocks/chunks, call a local Codex HTTP/CLIProxyAPI endpoint for structured knowledge extraction, persist/reuse extraction payloads in `.wiki-state/llm-cache.json`, materialize extraction output or cached source IDs into entity/concept Markdown pages, dry-run resolver create/update/skip decisions, apply resolver plans during page writes, merge page `source_ids` across updates, maintain generated index entries, managed backlinks, and chronological write logs, lint wiki health for broken links/frontmatter/orphans/index completeness/duplicate titles and aliases, detect duplicate source content, build a reusable wikilink graph, search maintained wiki pages, answer questions with local Codex HTTP/CLIProxyAPI using matched pages plus graph-expanded neighbors as grounded context, and optionally save answers into `queries/`. The next goal is to refactor lint broken-link/orphan checks onto the shared graph API, then add source drift checks.
+MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files and normalized JSONL news archives into immutable raw-source storage, import repo/date/source-based market-intelligence archives with `ingest-news-archive`, parse raw sources into structured blocks/chunks, call a local Codex HTTP/CLIProxyAPI endpoint for structured knowledge extraction, persist/reuse extraction payloads in `.wiki-state/llm-cache.json`, materialize extraction output or cached source IDs into entity/concept Markdown pages, dry-run resolver create/update/skip decisions, apply resolver plans during page writes, merge page `source_ids` across updates, maintain generated index entries, managed backlinks, and chronological write logs, lint wiki health for broken links/frontmatter/orphans/index completeness/duplicate titles and aliases, detect duplicate source content, build a reusable wikilink graph, search maintained wiki pages, answer questions with local Codex HTTP/CLIProxyAPI using matched pages plus graph-expanded neighbors as grounded context, and optionally save answers into `queries/`. The next goal is to refactor lint broken-link/orphan checks onto the shared graph API, then add source drift checks.
 
 ## License
 

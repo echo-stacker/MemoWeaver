@@ -9,6 +9,7 @@ from memoweaver import __version__
 from memoweaver.ingest import ingest_file
 from memoweaver.llm import CodexHTTPProvider, LLM_SCHEMA_VERSION, extract_document_insights
 from memoweaver.lint import lint_wiki
+from memoweaver.news_archive import ingest_news_archive
 from memoweaver.parser import parse_wiki_raw_source
 from memoweaver.query import ask_wiki
 from memoweaver.resolver import resolve_extraction_pages
@@ -56,6 +57,22 @@ def ingest(source_path: Path, wiki_path: Path, title: str | None) -> None:
         click.echo(f"Ingested source: source_id={result.record.source_id} raw_path={result.raw_path}")
     else:
         click.echo(f"Duplicate source: source_id={result.record.source_id} raw_path={result.raw_path}")
+
+
+@cli.command("ingest-news-archive")
+@click.argument("archive_repo", type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.option("--wiki", "wiki_path", required=True, type=click.Path(path_type=Path), help="MemoWeaver wiki path.")
+@click.option("--date", "target_date", required=True, help="Archive date in YYYY-MM-DD format.")
+@click.option("--source", default="cls", show_default=True, help="Source id from the archive repo registry, such as cls.")
+@click.option("--title", default=None, help="Optional source title stored in MemoWeaver state.")
+def ingest_news_archive_command(archive_repo: Path, wiki_path: Path, target_date: str, source: str, title: str | None) -> None:
+    """Ingest and parse a normalized daily news archive from another repo."""
+
+    try:
+        result = ingest_news_archive(archive_repo, wiki_path=wiki_path, date=target_date, source=source, title=title)
+    except (FileNotFoundError, ValueError, json.JSONDecodeError) as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(json.dumps(result.to_dict(), ensure_ascii=False, sort_keys=True))
 
 
 @cli.command()

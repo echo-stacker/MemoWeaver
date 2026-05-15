@@ -4,6 +4,7 @@ from memoweaver.config import MemoWeaverConfig
 from memoweaver.graph import WikiGraph, WikiPageNode, build_wiki_graph, expand_wiki_neighborhood, parse_wikilinks
 from memoweaver.ingest import IngestFileResult, ingest_file
 from memoweaver.llm import CodexHTTPProvider, LLMExtraction, extract_document_insights
+from memoweaver.news_archive import NewsArchiveIngestResult, ingest_news_archive, resolve_news_archive_path
 from memoweaver.lint import LintIssue, LintReport, lint_wiki
 from memoweaver.parser import ParsedBlock, ParsedChunk, ParsedDocument, parse_file, parse_jsonl_news_archive, parse_wiki_raw_source
 from memoweaver.query import WikiAnswer, WikiSearchResult, ask_wiki, search_wiki_pages
@@ -17,6 +18,7 @@ __all__ = [
     "CodexHTTPProvider",
     "IngestFileResult",
     "LLMExtraction",
+    "NewsArchiveIngestResult",
     "ParsedBlock",
     "ParsedChunk",
     "ParsedDocument",
@@ -36,6 +38,7 @@ __all__ = [
     "expand_wiki_neighborhood",
     "extract_document_insights",
     "ingest_file",
+    "ingest_news_archive",
     "init_wiki",
     "initialize_state",
     "maintain_backlinks",
@@ -44,6 +47,7 @@ __all__ = [
     "parse_wiki_raw_source",
     "parse_wikilinks",
     "resolve_extraction_pages",
+    "resolve_news_archive_path",
     "scan_wiki_pages",
     "search_wiki_pages",
     "write_extraction_pages",

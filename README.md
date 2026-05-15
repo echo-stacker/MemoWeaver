@@ -296,9 +296,18 @@ wiki.lint()
 
 ### Phase 9 — Query and Automation
 
+- [x] Add lexical wiki page search
+- [x] Add `ask` CLI command
+- [x] Build grounded answer context from matching pages
+- [x] Support local Codex HTTP/CLIProxyAPI answers
+- [x] Emit agent-friendly JSON answers
+- [x] Save valuable answers into `queries/`
+- [ ] Expand context through wikilink neighborhoods
+- [ ] Add scheduled query/maintenance automation
+
 ## Status
 
-MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, parse raw sources into structured blocks/chunks, call a local Codex HTTP/CLIProxyAPI endpoint for structured knowledge extraction, persist/reuse extraction payloads in `.wiki-state/llm-cache.json`, materialize extraction output or cached source IDs into entity/concept Markdown pages, dry-run resolver create/update/skip decisions, apply resolver plans during page writes, merge page `source_ids` across updates, maintain generated index entries and chronological write logs, lint wiki health for broken links/frontmatter/orphans/index completeness/duplicate titles and aliases, and detect duplicate source content. The next goal is to add backlink generation and canonical alias/collision policies so long-lived wikis become more navigable as pages accumulate.
+MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, parse raw sources into structured blocks/chunks, call a local Codex HTTP/CLIProxyAPI endpoint for structured knowledge extraction, persist/reuse extraction payloads in `.wiki-state/llm-cache.json`, materialize extraction output or cached source IDs into entity/concept Markdown pages, dry-run resolver create/update/skip decisions, apply resolver plans during page writes, merge page `source_ids` across updates, maintain generated index entries and chronological write logs, lint wiki health for broken links/frontmatter/orphans/index completeness/duplicate titles and aliases, detect duplicate source content, search maintained wiki pages, answer questions with local Codex HTTP/CLIProxyAPI using matched pages as grounded context, and optionally save answers into `queries/`. The next goal is to add a reusable graph/backlink layer so query, lint, and writer can share wikilink neighborhoods and keep long-lived wikis navigable.
 
 ## License
 

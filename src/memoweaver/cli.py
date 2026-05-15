@@ -10,6 +10,7 @@ from memoweaver.ingest import ingest_file
 from memoweaver.llm import CodexHTTPProvider, LLM_SCHEMA_VERSION, extract_document_insights
 from memoweaver.lint import lint_wiki
 from memoweaver.parser import parse_wiki_raw_source
+from memoweaver.query import ask_wiki
 from memoweaver.resolver import resolve_extraction_pages
 from memoweaver.storage import LLMExtractionCache, SourceRegistry
 from memoweaver.wiki import init_wiki
@@ -188,6 +189,31 @@ def resolve_pages(extraction_path: Path, wiki_path: Path) -> None:
     payload = json.loads(extraction_path.read_text(encoding="utf-8"))
     plan = resolve_extraction_pages(extraction_from_dict(payload), wiki_path=wiki_path)
     click.echo(json.dumps(plan.to_dict(), ensure_ascii=False, sort_keys=True))
+
+
+@cli.command("ask")
+@click.argument("question")
+@click.option("--wiki", "wiki_path", required=True, type=click.Path(exists=True, file_okay=False, path_type=Path), help="MemoWeaver wiki path.")
+@click.option("--limit", default=5, show_default=True, type=int, help="Maximum matching pages to use as context.")
+@click.option("--json", "as_json", is_flag=True, help="Emit a machine-readable JSON answer.")
+@click.option("--save", is_flag=True, help="Save the answer as a Markdown page under queries/.")
+def ask_command(question: str, wiki_path: Path, limit: int, as_json: bool, save: bool) -> None:
+    """Ask a question against the maintained wiki."""
+
+    try:
+        answer = ask_wiki(question, wiki_path=wiki_path, provider=CodexHTTPProvider.from_env(), limit=limit, save=save)
+    except Exception as exc:
+        raise click.ClickException(str(exc)) from exc
+    if as_json:
+        click.echo(json.dumps(answer.to_dict(), ensure_ascii=False, sort_keys=True))
+        return
+    click.echo(answer.answer)
+    if answer.sources:
+        click.echo("\nSources:")
+        for source in answer.sources:
+            click.echo(f"- [[{source.relative_path.removesuffix('.md')}|{source.title}]]")
+    if answer.saved_path is not None:
+        click.echo(f"\nSaved: {answer.saved_path}")
 
 
 @cli.command("lint")

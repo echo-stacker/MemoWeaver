@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from memoweaver.graph import build_wiki_graph, expand_wiki_neighborhood
 from memoweaver.llm import CodexHTTPProvider, LLMProvider
 from memoweaver.wiki_writer import page_slug
 
@@ -82,11 +83,13 @@ def ask_wiki(
     provider: LLMProvider | None = None,
     limit: int = 5,
     save: bool = False,
+    graph_depth: int = 1,
 ) -> WikiAnswer:
     """Answer a question using matching wiki pages as grounded context."""
 
     wiki = Path(wiki_path)
-    sources = tuple(search_wiki_pages(question, wiki_path=wiki, limit=limit))
+    seed_sources = search_wiki_pages(question, wiki_path=wiki, limit=limit)
+    sources = tuple(_expand_search_results(seed_sources, wiki=wiki, depth=graph_depth, limit=limit))
     provider = provider or CodexHTTPProvider.from_env()
     system = (
         "Answer only from the provided MemoWeaver wiki context. "
@@ -97,6 +100,22 @@ def ask_wiki(
     answer_text = provider.complete(system=system, user=user, max_tokens=1200).strip()
     saved_path = _save_query_page(wiki, question=question, answer=answer_text, sources=sources) if save else None
     return WikiAnswer(question=question, answer=answer_text, sources=sources, saved_path=saved_path)
+
+
+def _expand_search_results(seed_sources: list[WikiSearchResult], *, wiki: Path, depth: int, limit: int) -> list[WikiSearchResult]:
+    if not seed_sources or depth <= 0:
+        return seed_sources[: max(0, limit)]
+    graph = build_wiki_graph(wiki)
+    expanded_paths = expand_wiki_neighborhood([source.path for source in seed_sources], graph=graph, depth=depth, limit=max(0, limit * (depth + 1)))
+    by_path = {source.path: source for source in seed_sources}
+    expanded: list[WikiSearchResult] = []
+    for path in expanded_paths:
+        if path in by_path:
+            expanded.append(by_path[path])
+            continue
+        text = path.read_text(encoding="utf-8")
+        expanded.append(WikiSearchResult(title=_page_title(text, fallback=path.stem), path=path, wiki_path=wiki, score=0, snippet=_snippet(text, [])))
+    return expanded
 
 
 def _iter_content_pages(wiki: Path) -> list[Path]:

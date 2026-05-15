@@ -194,14 +194,15 @@ def resolve_pages(extraction_path: Path, wiki_path: Path) -> None:
 @cli.command("ask")
 @click.argument("question")
 @click.option("--wiki", "wiki_path", required=True, type=click.Path(exists=True, file_okay=False, path_type=Path), help="MemoWeaver wiki path.")
-@click.option("--limit", default=5, show_default=True, type=int, help="Maximum matching pages to use as context.")
+@click.option("--limit", default=5, show_default=True, type=int, help="Maximum matching pages to use as seed context.")
+@click.option("--graph-depth", default=1, show_default=True, type=int, help="Wikilink neighborhood depth added after seed search results; use 0 to disable.")
 @click.option("--json", "as_json", is_flag=True, help="Emit a machine-readable JSON answer.")
 @click.option("--save", is_flag=True, help="Save the answer as a Markdown page under queries/.")
-def ask_command(question: str, wiki_path: Path, limit: int, as_json: bool, save: bool) -> None:
+def ask_command(question: str, wiki_path: Path, limit: int, graph_depth: int, as_json: bool, save: bool) -> None:
     """Ask a question against the maintained wiki."""
 
     try:
-        answer = ask_wiki(question, wiki_path=wiki_path, provider=CodexHTTPProvider.from_env(), limit=limit, save=save)
+        answer = ask_wiki(question, wiki_path=wiki_path, provider=CodexHTTPProvider.from_env(), limit=limit, save=save, graph_depth=graph_depth)
     except Exception as exc:
         raise click.ClickException(str(exc)) from exc
     if as_json:

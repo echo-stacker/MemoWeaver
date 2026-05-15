@@ -178,6 +178,7 @@ memoweaver resolve-pages ./extraction.json --wiki ./wiki
 
 # Ask a question against the maintained wiki
 memoweaver ask "What are the strongest arguments for agentic knowledge bases?" --wiki ./wiki
+memoweaver ask "What are the strongest arguments for agentic knowledge bases?" --wiki ./wiki --graph-depth 1 --json
 
 # Run a maintenance audit
 memoweaver lint ./wiki
@@ -302,12 +303,21 @@ wiki.lint()
 - [x] Support local Codex HTTP/CLIProxyAPI answers
 - [x] Emit agent-friendly JSON answers
 - [x] Save valuable answers into `queries/`
-- [ ] Expand context through wikilink neighborhoods
+- [x] Expand context through wikilink neighborhoods
 - [ ] Add scheduled query/maintenance automation
+
+### Phase 10 — Graph and Backlinks
+
+- [x] Parse Obsidian-style wikilinks (`[[Page]]`, aliases, headings, paths)
+- [x] Build reusable inbound/outbound wiki graph maps
+- [x] Detect isolated graph nodes through shared graph API
+- [x] Expose graph expansion for query context enrichment
+- [ ] Generate managed backlinks blocks in wiki pages
+- [ ] Refactor lint broken-link/orphan checks onto graph API
 
 ## Status
 
-MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, parse raw sources into structured blocks/chunks, call a local Codex HTTP/CLIProxyAPI endpoint for structured knowledge extraction, persist/reuse extraction payloads in `.wiki-state/llm-cache.json`, materialize extraction output or cached source IDs into entity/concept Markdown pages, dry-run resolver create/update/skip decisions, apply resolver plans during page writes, merge page `source_ids` across updates, maintain generated index entries and chronological write logs, lint wiki health for broken links/frontmatter/orphans/index completeness/duplicate titles and aliases, detect duplicate source content, search maintained wiki pages, answer questions with local Codex HTTP/CLIProxyAPI using matched pages as grounded context, and optionally save answers into `queries/`. The next goal is to add a reusable graph/backlink layer so query, lint, and writer can share wikilink neighborhoods and keep long-lived wikis navigable.
+MemoWeaver is currently in early implementation. It can initialize a Markdown wiki, create the file-based state store, register sources by SHA-256, ingest local Markdown/TXT files into immutable raw-source storage, parse raw sources into structured blocks/chunks, call a local Codex HTTP/CLIProxyAPI endpoint for structured knowledge extraction, persist/reuse extraction payloads in `.wiki-state/llm-cache.json`, materialize extraction output or cached source IDs into entity/concept Markdown pages, dry-run resolver create/update/skip decisions, apply resolver plans during page writes, merge page `source_ids` across updates, maintain generated index entries and chronological write logs, lint wiki health for broken links/frontmatter/orphans/index completeness/duplicate titles and aliases, detect duplicate source content, build a reusable wikilink graph, search maintained wiki pages, answer questions with local Codex HTTP/CLIProxyAPI using matched pages plus graph-expanded neighbors as grounded context, and optionally save answers into `queries/`. The next goal is to generate managed backlink blocks from the graph layer and then refactor lint checks onto the shared graph API.
 
 ## License
 
